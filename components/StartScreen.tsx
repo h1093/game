@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { GAME_TITLE } from '../constants';
 
@@ -19,8 +18,6 @@ interface StartScreenProps {
     onStartGame: () => void;
     onLoadGame: () => void;
     saveFileExists: boolean;
-    apiKey: string | null;
-    onSetApiKey: (key: string) => void;
 }
 
 const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
@@ -37,6 +34,21 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
             </button>
             <h2 className="text-3xl font-title text-red-400 border-b-2 border-red-500/30 pb-2">Nhật Ký Cập Nhật</h2>
             
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.9: Đồng Minh và Định Mệnh</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống Đồng Đội: Giờ đây bạn không còn phải đơn độc. Gặp gỡ và chiêu mộ các nhân vật khác vào nhóm của bạn. Họ sẽ chiến đấu bên cạnh bạn, nhưng hãy cẩn thận, họ cũng có thể bị thương và có số phận riêng.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống Nhiệm Vụ: Khám phá các mục tiêu và cốt truyện sâu sắc hơn với Nhật Ký Nhiệm Vụ. Theo dõi các nhiệm vụ đang hoạt động và đã hoàn thành trong một tab chuyên dụng trong màn hình Hành Trang.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[CẢI TIẾN GIAO DIỆN]</span> Bảng Đồng Đội và Nhiệm Vụ đã được thêm vào giao diện chính để dễ dàng theo dõi.
+                    </li>
+                </ul>
+            </div>
+
             <div className="border-b border-gray-700 pb-6">
                 <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.8: Cái Giá Của Sự Sống</h3>
                 <ul className="list-disc list-inside space-y-3 text-gray-300">
@@ -138,20 +150,8 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
 );
 
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists, apiKey, onSetApiKey }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists }) => {
     const [isUpdateLogOpen, setIsUpdateLogOpen] = useState(false);
-    const [keyInput, setKeyInput] = useState('');
-
-    const handleSaveKey = () => {
-        if (keyInput.trim()) {
-            onSetApiKey(keyInput.trim());
-            setKeyInput('');
-        }
-    };
-
-    const handleClearKey = () => {
-        onSetApiKey('');
-    };
 
     return (
         <div className="bg-gray-900 text-gray-300 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-red-900/50 selection:text-white">
@@ -166,18 +166,16 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
                     {saveFileExists && (
                         <button
                             onClick={onLoadGame}
-                            disabled={!apiKey}
-                            className="bg-blue-700 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-10 rounded-lg text-2xl transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(37,99,235,0.7)] order-first sm:order-none"
-                            title={!apiKey ? "Vui lòng nhập API Key để tiếp tục" : "Tiếp tục cuộc hành trình"}
+                            className="bg-blue-700 hover:bg-blue-600 text-white font-bold py-4 px-10 rounded-lg text-2xl transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(37,99,235,0.7)] order-first sm:order-none"
+                            title="Tiếp tục cuộc hành trình"
                         >
                             Tiếp Tục
                         </button>
                     )}
                     <button
                         onClick={onStartGame}
-                        disabled={!apiKey}
-                        className="bg-red-700 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-10 rounded-lg text-2xl transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(220,38,38,0.7)]"
-                        title={!apiKey ? "Vui lòng nhập API Key để bắt đầu" : "Bắt đầu cuộc phiêu lưu mới"}
+                        className="bg-red-700 hover:bg-red-600 text-white font-bold py-4 px-10 rounded-lg text-2xl transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(220,38,38,0.7)]"
+                        title="Bắt đầu cuộc phiêu lưu mới"
                     >
                         Trò Chơi Mới
                     </button>
@@ -191,38 +189,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
             </div>
 
             <div className="absolute bottom-4 left-4 right-4 flex justify-center">
-                <div className="w-full max-w-lg bg-gray-800/60 p-6 rounded-lg border border-gray-700 backdrop-blur-sm">
-                    <h3 className="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-2">
-                        <IconKey /> API Key Gemini
-                    </h3>
-                    {apiKey ? (
-                        <div className="flex items-center justify-between">
-                            <p className="text-green-400 font-semibold">API Key đã được lưu.</p>
-                            <button onClick={handleClearKey} className="text-sm text-red-400 hover:text-red-300 font-semibold">Xóa Key</button>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            <p className="text-sm text-gray-400">Để chơi, bạn cần cung cấp một Google AI API Key hợp lệ. Nhận key của bạn từ <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-yellow-400 underline hover:text-yellow-300">Google AI Studio</a>.</p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="password"
-                                    value={keyInput}
-                                    onChange={(e) => setKeyInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
-                                    placeholder="Dán API Key của bạn vào đây"
-                                    className="flex-grow bg-gray-900 border border-gray-600 rounded-md p-2 focus:ring-2 focus:ring-yellow-500 focus:outline-none transition"
-                                />
-                                <button
-                                    onClick={handleSaveKey}
-                                    disabled={!keyInput.trim()}
-                                    className="bg-yellow-600 hover:bg-yellow-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-md transition-colors"
-                                >
-                                    Lưu
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                 <p className="text-sm text-gray-500">Được cung cấp bởi API Gemini của Google.</p>
             </div>
 
             {isUpdateLogOpen && <UpdateLogModal onClose={() => setIsUpdateLogOpen(false)} />}

@@ -18,31 +18,31 @@ interface CompanionsPanelProps {
 }
 
 const CompanionsPanel: React.FC<CompanionsPanelProps> = ({ companions }) => {
-    if (companions.length === 0) {
-        return null;
-    }
-
     return (
         <div className="bg-gray-800/50 p-4 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm">
             <h2 className="text-xl font-title text-red-400 mb-4 border-b-2 border-red-500/30 pb-2 flex items-center gap-2"><IconUsers /> Đồng Đội</h2>
             <div className="space-y-4">
-                {companions.map((companion) => {
-                    const hpPercentage = companion.maxHp > 0 ? (companion.hp / companion.maxHp) * 100 : 0;
-                    return (
-                        <div key={companion.id}>
-                             <div className="flex justify-between items-center mb-1">
-                                <span className="font-bold text-gray-200">{companion.name}</span>
-                                <span className="text-sm font-mono bg-gray-700 px-2 py-1 rounded">{companion.hp} / {companion.maxHp}</span>
+                {companions.length > 0 ? (
+                    companions.map((companion) => {
+                        const hpPercentage = companion.maxHp > 0 ? (companion.hp / companion.maxHp) * 100 : 0;
+                        return (
+                            <div key={companion.id}>
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-gray-200">{companion.name}</span>
+                                    <span className="text-sm font-mono bg-gray-700 px-2 py-1 rounded">{companion.hp} / {companion.maxHp}</span>
+                                </div>
+                                <div className="w-full bg-gray-600 rounded-full h-3 border border-gray-500">
+                                    <div
+                                        className="bg-green-600 h-full rounded-full transition-all duration-500 ease-out"
+                                        style={{ width: `${hpPercentage}%` }}
+                                    ></div>
+                                </div>
                             </div>
-                            <div className="w-full bg-gray-600 rounded-full h-3 border border-gray-500">
-                                <div
-                                    className="bg-green-600 h-full rounded-full transition-all duration-500 ease-out"
-                                    style={{ width: `${hpPercentage}%` }}
-                                ></div>
-                            </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                ) : (
+                    <p className="text-sm text-gray-500 italic">Bạn đang phiêu lưu một mình.</p>
+                )}
             </div>
         </div>
     );

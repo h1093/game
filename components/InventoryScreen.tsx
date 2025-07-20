@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Item, PlayerState, Quest } from '../types';
+import { Item, PlayerState, Quest, Skill } from '../types';
 import SkillBookPanel from './SkillBookPanel';
 
 // SVG Icons
@@ -38,6 +38,8 @@ interface InventoryScreenProps {
     playerState: PlayerState;
     onUseItem: (item: Item) => void;
     log: string[];
+    onUseSkill: (skill: Skill) => void;
+    isLoading: boolean;
 }
 
 const itemIcons: { [key in Item['type']]: React.ReactElement } = {
@@ -181,7 +183,7 @@ const LogPanel = ({ logEntries }: { logEntries: string[] }) => (
 );
 
 
-const InventoryScreen: React.FC<InventoryScreenProps> = ({ isOpen, onClose, playerState, onUseItem, log }) => {
+const InventoryScreen: React.FC<InventoryScreenProps> = ({ isOpen, onClose, playerState, onUseItem, log, onUseSkill, isLoading }) => {
     const [activeTab, setActiveTab] = useState<'inventory' | 'skills' | 'quests' | 'log'>('inventory');
 
     if (!isOpen) return null;
@@ -230,7 +232,7 @@ const InventoryScreen: React.FC<InventoryScreenProps> = ({ isOpen, onClose, play
                     </div>
                     
                     {activeTab === 'inventory' && <InventoryPanel playerState={playerState} onUseItem={onUseItem} />}
-                    {activeTab === 'skills' && <SkillBookPanel playerState={playerState} />}
+                    {activeTab === 'skills' && <SkillBookPanel playerState={playerState} onUseSkill={onUseSkill} isLoading={isLoading} />}
                     {activeTab === 'quests' && <QuestLogPanel quests={playerState.quests} />}
                     {activeTab === 'log' && <LogPanel logEntries={log} />}
                 </div>

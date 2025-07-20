@@ -146,11 +146,8 @@ const RESPONSE_SCHEMA = {
 export class GameAIService {
     private chat: Chat;
 
-    constructor(difficulty: Difficulty, apiKey: string) {
-        if (!apiKey) {
-            throw new Error("API Key không được cung cấp khi khởi tạo GameAIService.");
-        }
-        const ai = new GoogleGenAI({ apiKey: apiKey });
+    constructor(difficulty: Difficulty) {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
         let difficultyInstructions = '';
         switch (difficulty) {

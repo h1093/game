@@ -12,7 +12,7 @@ import CharacterCreationScreen from './components/CharacterCreationScreen';
 import InventoryScreen from './components/InventoryScreen';
 import EquipmentScreen from './components/EquipmentScreen';
 import CompanionsPanel from './components/CompanionsPanel';
-import SkillsPanel from './components/SkillsPanel';
+import QuestsPanel from './components/ArtPanel';
 
 // SVG Icons
 const IconInventory = (props: React.SVGProps<SVGSVGElement>) => (
@@ -50,9 +50,11 @@ const App: React.FC = () => {
         narrative: '',
         choices: [],
         difficulty: null,
+        turn: 0,
     });
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [notification, setNotification] = useState<string>('');
+    const [showTurnNotification, setShowTurnNotification] = useState<number | null>(null);
     const [log, setLog] = useState<string[]>([]);
     const [isInventoryOpen, setIsInventoryOpen] = useState(false);
     const [isEquipmentOpen, setIsEquipmentOpen] = useState(false);
@@ -60,15 +62,10 @@ const App: React.FC = () => {
     const [isNewGameConfirmOpen, setIsNewGameConfirmOpen] = useState(false);
     const [saveFileExists, setSaveFileExists] = useState<boolean>(false);
     const [customActionInput, setCustomActionInput] = useState('');
-    const [apiKey, setApiKey] = useState<string | null>(null);
     const gameAIService = useRef<GameAIService | null>(null);
 
     useEffect(() => {
         try {
-            const savedKey = localStorage.getItem('gemini_api_key');
-            if (savedKey) {
-                setApiKey(savedKey);
-            }
             if (localStorage.getItem(SAVE_KEY)) {
                 setSaveFileExists(true);
             }
@@ -83,61 +80,6 @@ const App: React.FC = () => {
         setLog(prevLog => [`[${timestamp}] ${message}`, ...prevLog].slice(0, 50));
     }, [setLog]);
     
-
-    const handleSetApiKey = useCallback((key: string) => {
-        try {
-            if (key) {
-                localStorage.setItem('gemini_api_key', key);
-                setApiKey(key);
-                const msg = "API Key đã được lưu.";
-                setNotification(msg);
-                addLogEntry(msg);
-            } else {
-                localStorage.removeItem('gemini_api_key');
-                setApiKey(null);
-                const msg = "API Key đã được xóa.";
-                setNotification(msg);
-                addLogEntry(msg);
-            }
-        } catch (e) {
-            console.error("Lỗi khi lưu API key:", e);
-            const msg = "Không thể lưu API key.";
-            setNotification(msg);
-            addLogEntry(msg);
-        }
-    }, [addLogEntry, setApiKey, setNotification]);
-
-
-    const handleGameTick = useCallback(() => {
-        setPlayerState(prev => {
-            let decayMessage: string | null = null;
-            const newInventory = [...prev.inventory].map(item => {
-                if (item.isSeveredPart && typeof item.decayTimer === 'number' && item.decayTimer > 0) {
-                    const newDecayTimer = item.decayTimer - 1;
-                    if (newDecayTimer <= 0) {
-                        decayMessage = `Mùi hôi thối bốc lên từ túi của bạn... '${item.name}' đã bị thối rữa.`;
-                        return {
-                            ...item,
-                            name: `${item.name} (Thối Rữa)`,
-                            description: "Bộ phận này đã phân hủy không thể nhận ra, bốc lên một mùi hôi thối nồng nặc. Nó đã mất hết mọi tiềm năng.",
-                            decayTimer: undefined,
-                        };
-                    }
-                    return { ...item, decayTimer: newDecayTimer };
-                }
-                return item;
-            });
-
-            if (decayMessage) {
-                setTimeout(() => {
-                    addLogEntry(decayMessage!);
-                    setNotification(decayMessage!);
-                }, 0);
-            }
-
-            return { ...prev, inventory: newInventory };
-        });
-    }, [addLogEntry, setNotification, setPlayerState]);
 
     const recalculateStats = useCallback((currentState: PlayerState): PlayerState => {
         const newState = { ...currentState };
@@ -196,10 +138,6 @@ const App: React.FC = () => {
     }, [playerState, gameState, addLogEntry, setSaveFileExists, setNotification]);
 
     const loadGame = useCallback(() => {
-        if (!apiKey) {
-            setNotification("Vui lòng nhập API Key để tải trò chơi.");
-            return;
-        }
         try {
             const savedDataString = localStorage.getItem(SAVE_KEY);
             if (savedDataString) {
@@ -212,11 +150,15 @@ const App: React.FC = () => {
                     if (!loadedPlayerState.equipment) {
                         loadedPlayerState.equipment = {};
                     }
+                     // Ensure turn field exists for older saves
+                    if (savedData.gameState.turn === undefined) {
+                        savedData.gameState.turn = 0;
+                    }
 
                     setPlayerState(recalculateStats(loadedPlayerState));
                     setGameState(savedData.gameState);
 
-                    gameAIService.current = new GameAIService(savedData.gameState.difficulty, apiKey);
+                    gameAIService.current = new GameAIService(savedData.gameState.difficulty);
                     
                     const msg = "Đã tải lại trò chơi từ điểm lưu cuối cùng.";
                     setNotification(msg);
@@ -233,7 +175,7 @@ const App: React.FC = () => {
             setNotification(msg);
             addLogEntry(msg);
         }
-    }, [apiKey, addLogEntry, recalculateStats, setPlayerState, setGameState, setNotification, setSaveFileExists]);
+    }, [addLogEntry, recalculateStats, setPlayerState, setGameState, setNotification, setSaveFileExists]);
 
     useEffect(() => {
         if (notification) {
@@ -241,14 +183,30 @@ const App: React.FC = () => {
             return () => clearTimeout(timer);
         }
     }, [notification, setNotification]);
+    
+    useEffect(() => {
+        if (showTurnNotification !== null) {
+            const timer = setTimeout(() => {
+                setShowTurnNotification(null);
+            }, 2000); // Display for 2 seconds
+            return () => clearTimeout(timer);
+        }
+    }, [showTurnNotification]);
 
     const processGameData = useCallback((gameData: GameData) => {
-        setGameState(prevState => ({
-            ...prevState,
-            phase: gameData.gameState,
-            narrative: gameData.narrative,
-            choices: gameData.choices,
-        }));
+        setGameState(prevState => {
+             const newTurn = (prevState.phase === 'EXPLORING' || prevState.phase === 'COMBAT') ? prevState.turn + 1 : prevState.turn;
+            if (newTurn > prevState.turn) {
+                setShowTurnNotification(newTurn);
+            }
+            return {
+                ...prevState,
+                phase: gameData.gameState,
+                narrative: gameData.narrative,
+                choices: gameData.choices,
+                turn: newTurn,
+            };
+        });
 
         setPlayerState(prevPlayerState => {
             let newPlayerState = { ...prevPlayerState };
@@ -347,6 +305,32 @@ const App: React.FC = () => {
                 };
             }
 
+            // Item Decay Logic (from former handleGameTick)
+            let decayMessage: string | null = null;
+            const inventoryAfterDecay = [...newPlayerState.inventory].map(item => {
+                if (item.isSeveredPart && typeof item.decayTimer === 'number' && item.decayTimer > 0) {
+                    const newDecayTimer = item.decayTimer - 1;
+                    if (newDecayTimer <= 0) {
+                        decayMessage = `Mùi hôi thối bốc lên từ túi của bạn... '${item.name}' đã bị thối rữa.`;
+                        return {
+                            ...item,
+                            name: `${item.name} (Thối Rữa)`,
+                            description: "Bộ phận này đã phân hủy không thể nhận ra, bốc lên một mùi hôi thối nồng nặc. Nó đã mất hết mọi tiềm năng.",
+                            decayTimer: undefined,
+                        };
+                    }
+                    return { ...item, decayTimer: newDecayTimer };
+                }
+                return item;
+            });
+             if (decayMessage) {
+                setTimeout(() => {
+                    addLogEntry(decayMessage!);
+                    setNotification(decayMessage!);
+                }, 0);
+            }
+            newPlayerState = { ...newPlayerState, inventory: inventoryAfterDecay };
+
             return newPlayerState;
         });
         
@@ -379,7 +363,7 @@ const App: React.FC = () => {
             setNotification(message);
             addLogEntry(message);
         }
-    }, [addLogEntry, setGameState, setPlayerState, setNotification]);
+    }, [addLogEntry, setGameState, setPlayerState, setNotification, setShowTurnNotification]);
 
     const handleAction = useCallback(async (choice: Choice) => {
         if (!gameAIService.current || isLoading) return;
@@ -421,7 +405,6 @@ const App: React.FC = () => {
                 };
             }
             processGameData(gameData);
-            handleGameTick();
         } catch (e) {
             console.error("Lỗi khi xử lý hành động:", e);
             const msg = `Một cơn gió lạnh lẽo thì thầm về những phép thuật bị lãng quên. (Lỗi: Các linh hồn đang im lặng. Vui lòng thử lại.)`;
@@ -430,7 +413,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [playerState, gameState, addLogEntry, isLoading, processGameData, handleGameTick, setNotification, setIsLoading, setPlayerState, setGameState]);
+    }, [playerState, gameState, addLogEntry, isLoading, processGameData, setNotification, setIsLoading, setPlayerState, setGameState]);
     
      const handleCustomAction = useCallback(async (actionText: string) => {
         if (!gameAIService.current || isLoading || !actionText.trim()) return;
@@ -464,7 +447,6 @@ const App: React.FC = () => {
                 };
             }
             processGameData(gameData);
-            handleGameTick();
         } catch (e) {
             console.error("Lỗi khi xử lý hành động tùy chỉnh:", e);
             const msg = `Những tiếng thì thầm trong bóng tối chế nhạo nỗ lực của bạn. (Lỗi: Hành động tùy chỉnh thất bại. Vui lòng thử lại.)`;
@@ -473,7 +455,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [gameState, addLogEntry, isLoading, processGameData, handleGameTick, setCustomActionInput, setIsLoading, setGameState]);
+    }, [gameState, addLogEntry, isLoading, processGameData, setCustomActionInput, setIsLoading, setGameState]);
 
 
     const handleUseSkill = useCallback(async (skill: Skill) => {
@@ -493,6 +475,9 @@ const App: React.FC = () => {
             addLogEntry(msg);
             return;
         }
+        
+        // Close inventory if open to show action result
+        setIsInventoryOpen(false);
 
         setIsLoading(true);
         setPlayerState(prev => {
@@ -528,7 +513,6 @@ const App: React.FC = () => {
                 };
             }
             processGameData(gameData);
-            handleGameTick();
         } catch (e) {
             console.error("Lỗi khi xử lý kỹ năng:", e);
             const msg = `Năng lượng ma thuật trở nên hỗn loạn. (Lỗi: Không thể sử dụng kỹ năng. Vui lòng thử lại.)`;
@@ -537,7 +521,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [playerState, gameState, addLogEntry, isLoading, processGameData, handleGameTick, setNotification, setIsLoading, setPlayerState, setGameState]);
+    }, [playerState, gameState, addLogEntry, isLoading, processGameData, setNotification, setIsLoading, setPlayerState, setGameState]);
 
     const handleUseItem = useCallback((itemToUse: Item) => {
         if (itemToUse.type === 'POTION') {
@@ -570,7 +554,7 @@ const App: React.FC = () => {
                     
                     const msg = `Bạn đã dùng một ${itemToUse.name} và ${msgParts.join(' và ')}.`;
                     setNotification(msg);
-                    addLogEntry(msg);
+addLogEntry(msg);
                     
                     return {...prev, hp: healedHp, mana: restoredMana, inventory: newInventory };
                 }
@@ -654,14 +638,10 @@ const App: React.FC = () => {
     }, [setIsNewGameConfirmOpen]);
 
     const handleCharacterCreation = useCallback(async (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => {
-        if (!apiKey) {
-            setNotification("Lỗi: API Key không tồn tại. Không thể bắt đầu trò chơi.");
-            return;
-        }
         
         const { name, bio, characterClass, difficulty, gender, personality, goal } = details;
         
-        gameAIService.current = new GameAIService(difficulty, apiKey);
+        gameAIService.current = new GameAIService(difficulty);
 
         const classData = CLASSES[characterClass];
         const baseState = {
@@ -691,7 +671,7 @@ const App: React.FC = () => {
         
         await handleAction({ text: "Bắt đầu", prompt: initialPrompt });
 
-    }, [apiKey, handleAction, recalculateStats, setPlayerState, setIsLoading, setGameState]);
+    }, [handleAction, recalculateStats, setPlayerState, setIsLoading, setGameState]);
 
     const restartGame = useCallback(() => {
         setPlayerState(INITIAL_PLAYER_STATE);
@@ -700,6 +680,7 @@ const App: React.FC = () => {
             narrative: '',
             choices: [],
             difficulty: null,
+            turn: 0,
         });
         setLog([]);
         setIsInventoryOpen(false);
@@ -745,8 +726,6 @@ const App: React.FC = () => {
             onStartGame={handleStartGame} 
             onLoadGame={loadGame} 
             saveFileExists={saveFileExists}
-            apiKey={apiKey}
-            onSetApiKey={handleSetApiKey}
         />;
     }
 
@@ -775,11 +754,6 @@ const App: React.FC = () => {
             <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     <NarrativePanel narrative={gameState.narrative} isLoading={isLoading} />
-                </div>
-                
-                <div className="lg:col-span-1 flex flex-col gap-6">
-                    <PlayerStatsPanel playerState={playerState} />
-                    <CompanionsPanel companions={playerState.companions} />
                     <ActionPanel 
                         choices={gameState.choices} 
                         onAction={handleAction} 
@@ -789,7 +763,12 @@ const App: React.FC = () => {
                         setCustomActionInput={setCustomActionInput}
                         onCustomAction={handleCustomAction}
                      />
-                    <SkillsPanel playerState={playerState} onUseSkill={handleUseSkill} isLoading={isLoading} />
+                </div>
+                
+                <div className="lg:col-span-1 flex flex-col gap-6">
+                    <PlayerStatsPanel playerState={playerState} />
+                    <CompanionsPanel companions={playerState.companions} />
+                    <QuestsPanel quests={playerState.quests} />
                     <div className="bg-gray-800/50 p-4 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm">
                          <div className="grid grid-cols-3 gap-3">
                             <button
@@ -822,6 +801,8 @@ const App: React.FC = () => {
                 playerState={playerState}
                 onUseItem={handleUseItem}
                 log={log}
+                onUseSkill={handleUseSkill}
+                isLoading={isLoading}
             />
 
             <EquipmentScreen
@@ -831,6 +812,15 @@ const App: React.FC = () => {
                 onEquipItem={handleEquipItem}
                 onUnequipItem={handleUnequipItem}
             />
+
+            {showTurnNotification !== null && (
+                <div 
+                    key={showTurnNotification}
+                    className="fixed top-20 left-1/2 -translate-x-1/2 bg-black/70 text-white font-title text-2xl py-2 px-8 rounded-full shadow-lg border border-red-500/30 animate-turn-notify z-50"
+                >
+                    Lượt {showTurnNotification}
+                </div>
+            )}
 
             {notification && (
                  <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-gray-800 text-white py-2 px-6 rounded-lg shadow-lg border border-red-500/50 animate-fadeIn z-50">

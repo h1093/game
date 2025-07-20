@@ -24,55 +24,55 @@ interface SkillsPanelProps {
 }
 
 const SkillsPanel: React.FC<SkillsPanelProps> = ({ playerState, onUseSkill, isLoading }) => {
-    if (playerState.skills.length === 0) {
-        return null;
-    }
-    
     return (
         <div className="bg-gray-800/50 p-4 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm">
             <h2 className="text-xl font-title text-red-400 mb-4 border-b-2 border-red-500/30 pb-2 flex items-center gap-2">
                 <IconBookCover /> Kỹ Năng
             </h2>
             <div className="flex flex-col gap-3">
-                {playerState.skills.map((skill) => {
-                    const cooldownTurns = playerState.skillCooldowns[skill.id] || 0;
-                    const resourcePool = skill.costType === 'MANA' ? playerState.mana : playerState.stamina;
-                    const hasEnoughResource = resourcePool >= skill.cost;
-                    const isDisabled = isLoading || cooldownTurns > 0 || !hasEnoughResource;
+                {playerState.skills.length > 0 ? (
+                    playerState.skills.map((skill) => {
+                        const cooldownTurns = playerState.skillCooldowns[skill.id] || 0;
+                        const resourcePool = skill.costType === 'MANA' ? playerState.mana : playerState.stamina;
+                        const hasEnoughResource = resourcePool >= skill.cost;
+                        const isDisabled = isLoading || cooldownTurns > 0 || !hasEnoughResource;
 
-                    let title = `${skill.description}\n\nLoại: ${skill.type}\nThời gian hồi: ${skill.cooldown} lượt`;
-                    if (!hasEnoughResource) {
-                        title += `\n(Không đủ ${skill.costType === 'MANA' ? 'Mana' : 'Thể lực'})`;
-                    }
-                     if (cooldownTurns > 0) {
-                        title += `\n(Đang hồi chiêu: ${cooldownTurns} lượt)`;
-                    }
+                        let title = `${skill.description}\n\nLoại: ${skill.type}\nThời gian hồi: ${skill.cooldown} lượt`;
+                        if (!hasEnoughResource) {
+                            title += `\n(Không đủ ${skill.costType === 'MANA' ? 'Mana' : 'Thể lực'})`;
+                        }
+                        if (cooldownTurns > 0) {
+                            title += `\n(Đang hồi chiêu: ${cooldownTurns} lượt)`;
+                        }
 
-                    return (
-                        <button
-                            key={skill.id}
-                            onClick={() => onUseSkill(skill)}
-                            disabled={isDisabled}
-                            className="flex items-center justify-between w-full text-left bg-gray-700 hover:bg-red-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-md transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:transform-none"
-                            title={title}
-                        >
-                            <span className="flex-grow pr-2">{skill.name}</span>
-                             <div className="flex items-center gap-3 flex-shrink-0">
-                                {cooldownTurns > 0 ? (
-                                     <span className="font-mono text-sm font-bold text-gray-400 flex items-center gap-1">
-                                         <IconClock /> {cooldownTurns}
-                                    </span>
-                                ) : (
-                                    skill.cost > 0 && (
-                                        <span className={`font-mono text-sm font-bold flex items-center gap-1 ${hasEnoughResource ? (skill.costType === 'MANA' ? 'text-purple-300' : 'text-blue-300') : 'text-red-400'}`}>
-                                            {skill.cost} {skill.costType === 'MANA' ? <IconSparkSpirit /> : <IconZap />}
+                        return (
+                            <button
+                                key={skill.id}
+                                onClick={() => onUseSkill(skill)}
+                                disabled={isDisabled}
+                                className="flex items-center justify-between w-full text-left bg-gray-700 hover:bg-red-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-md transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:transform-none"
+                                title={title}
+                            >
+                                <span className="flex-grow pr-2">{skill.name}</span>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                    {cooldownTurns > 0 ? (
+                                        <span className="font-mono text-sm font-bold text-gray-400 flex items-center gap-1">
+                                            <IconClock /> {cooldownTurns}
                                         </span>
-                                    )
-                                )}
-                            </div>
-                        </button>
-                    );
-                })}
+                                    ) : (
+                                        skill.cost > 0 && (
+                                            <span className={`font-mono text-sm font-bold flex items-center gap-1 ${hasEnoughResource ? (skill.costType === 'MANA' ? 'text-purple-300' : 'text-blue-300') : 'text-red-400'}`}>
+                                                {skill.cost} {skill.costType === 'MANA' ? <IconSparkSpirit /> : <IconZap />}
+                                            </span>
+                                        )
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })
+                ) : (
+                    <p className="text-sm text-gray-500 italic">Bạn chưa có kỹ năng nào.</p>
+                )}
             </div>
         </div>
     );

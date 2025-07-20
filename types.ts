@@ -107,6 +107,7 @@ export interface GameState {
     narrative: string;
     choices: Choice[];
     difficulty: Difficulty | null;
+    turn: number;
 }
 
 export interface StatusUpdate {

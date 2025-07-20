@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GameState, PlayerState, GameData, Choice, CharacterClass, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender } from './types';
-import { INITIAL_PLAYER_STATE, GAME_TITLE, CLASSES, SAVE_KEY } from './constants';
+import { INITIAL_PLAYER_STATE, GAME_TITLE, CLASSES, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY } from './constants';
 import { GameAIService } from './services/geminiService';
 import NarrativePanel from './components/NarrativePanel';
 import ActionPanel from './components/ActionPanel';
@@ -13,6 +13,7 @@ import InventoryScreen from './components/InventoryScreen';
 import EquipmentScreen from './components/EquipmentScreen';
 import CompanionsPanel from './components/CompanionsPanel';
 import QuestsPanel from './components/ArtPanel';
+import ApiKeyManager from './components/ApiKeyManager';
 
 // SVG Icons
 const IconInventory = (props: React.SVGProps<SVGSVGElement>) => (
@@ -63,16 +64,58 @@ const App: React.FC = () => {
     const [saveFileExists, setSaveFileExists] = useState<boolean>(false);
     const [customActionInput, setCustomActionInput] = useState('');
     const gameAIService = useRef<GameAIService | null>(null);
+    
+    // API Key Management State
+    const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
+    const [apiSource, setApiSource] = useState<'default' | 'user'>('default');
+    const [userApiKeys, setUserApiKeys] = useState<string[]>([]);
+    const [currentApiKeyIndex, setCurrentApiKeyIndex] = useState(0);
+    const [activeApiKey, setActiveApiKey] = useState<string | undefined>(undefined);
+
 
     useEffect(() => {
         try {
             if (localStorage.getItem(SAVE_KEY)) {
                 setSaveFileExists(true);
             }
+            // Load API Key settings
+            const savedApiSource = localStorage.getItem(API_SOURCE_STORAGE_KEY) as 'default' | 'user' | null;
+            const savedApiKeys = localStorage.getItem(API_KEYS_STORAGE_KEY);
+
+            if (savedApiSource) {
+                setApiSource(savedApiSource);
+            }
+            if (savedApiKeys) {
+                setUserApiKeys(JSON.parse(savedApiKeys));
+            }
+
         } catch (e) {
             console.error("Không thể truy cập localStorage:", e);
         }
     }, []);
+
+    // Effect to determine the active API key
+    useEffect(() => {
+        if (apiSource === 'user' && userApiKeys.length > 0) {
+            setActiveApiKey(userApiKeys[currentApiKeyIndex]);
+        } else {
+            setActiveApiKey(process.env.API_KEY);
+        }
+    }, [apiSource, userApiKeys, currentApiKeyIndex]);
+
+    // Effect to re-create the service when the key or difficulty changes
+    useEffect(() => {
+        if (activeApiKey && gameState.difficulty && (gameState.phase === 'EXPLORING' || gameState.phase === 'COMBAT')) {
+            try {
+                gameAIService.current = new GameAIService(gameState.difficulty, activeApiKey);
+                addLogEntry(`Dịch vụ AI được khởi tạo với nguồn ${apiSource === 'default' ? 'mặc định' : 'người dùng'}.`);
+            } catch (error) {
+                console.error("Lỗi khởi tạo GameAIService:", error);
+                setNotification("Lỗi: Không thể khởi tạo dịch vụ AI. Vui lòng kiểm tra API key.");
+            }
+        }
+    }, [activeApiKey, gameState.difficulty, gameState.phase]);
+
 
     const addLogEntry = useCallback((message: string) => {
         if (!message) return;
@@ -156,9 +199,7 @@ const App: React.FC = () => {
                     }
 
                     setPlayerState(recalculateStats(loadedPlayerState));
-                    setGameState(savedData.gameState);
-
-                    gameAIService.current = new GameAIService(savedData.gameState.difficulty);
+                    setGameState(savedData.gameState); // This will trigger the useEffect to create the AI service
                     
                     const msg = "Đã tải lại trò chơi từ điểm lưu cuối cùng.";
                     setNotification(msg);
@@ -192,6 +233,30 @@ const App: React.FC = () => {
             return () => clearTimeout(timer);
         }
     }, [showTurnNotification]);
+    
+    const handleApiError = (error: any) => {
+        const isAuthError = error.toString().includes('API_KEY') || error.toString().includes('permission');
+        if (isAuthError && apiSource === 'user' && userApiKeys.length > 1) {
+            const nextKeyIndex = (currentApiKeyIndex + 1) % userApiKeys.length;
+            setCurrentApiKeyIndex(nextKeyIndex);
+            const msg = "API Key không hợp lệ hoặc đã hết hạn. Tự động chuyển sang key tiếp theo.";
+            setNotification(msg);
+            addLogEntry(msg);
+            // The useEffect chain will handle re-creating the service with the new key.
+            // The user can then retry their action.
+        } else if (isAuthError) {
+             const msg = "Lỗi API: Key không hợp lệ hoặc bị thiếu. Vui lòng kiểm tra trong Quản lý API.";
+             setNotification(msg);
+             addLogEntry(msg);
+             setGameState(prevState => ({ ...prevState, narrative: `${prevState.narrative}\n\n(Lỗi: ${msg})` }));
+        }
+         else {
+             const msg = "Một cơn gió lạnh lẽo thì thầm về những phép thuật bị lãng quên. (Lỗi API không xác định).";
+             setNotification(msg);
+             setGameState(prevState => ({ ...prevState, narrative: msg }));
+             addLogEntry("Lỗi hệ thống: Không thể xử lý hành động do lỗi API.");
+        }
+    };
 
     const processGameData = useCallback((gameData: GameData) => {
         setGameState(prevState => {
@@ -407,9 +472,7 @@ const App: React.FC = () => {
             processGameData(gameData);
         } catch (e) {
             console.error("Lỗi khi xử lý hành động:", e);
-            const msg = `Một cơn gió lạnh lẽo thì thầm về những phép thuật bị lãng quên. (Lỗi: Các linh hồn đang im lặng. Vui lòng thử lại.)`;
-            setGameState(prevState => ({ ...prevState, narrative: msg }));
-            addLogEntry("Lỗi hệ thống: Không thể xử lý hành động.");
+            handleApiError(e);
         } finally {
             setIsLoading(false);
         }
@@ -449,9 +512,7 @@ const App: React.FC = () => {
             processGameData(gameData);
         } catch (e) {
             console.error("Lỗi khi xử lý hành động tùy chỉnh:", e);
-            const msg = `Những tiếng thì thầm trong bóng tối chế nhạo nỗ lực của bạn. (Lỗi: Hành động tùy chỉnh thất bại. Vui lòng thử lại.)`;
-            setGameState(prevState => ({ ...prevState, narrative: msg }));
-            addLogEntry("Lỗi hệ thống: Không thể xử lý hành động tùy chỉnh.");
+            handleApiError(e);
         } finally {
             setIsLoading(false);
         }
@@ -515,9 +576,7 @@ const App: React.FC = () => {
             processGameData(gameData);
         } catch (e) {
             console.error("Lỗi khi xử lý kỹ năng:", e);
-            const msg = `Năng lượng ma thuật trở nên hỗn loạn. (Lỗi: Không thể sử dụng kỹ năng. Vui lòng thử lại.)`;
-            setGameState(prevState => ({ ...prevState, narrative: msg }));
-            addLogEntry("Lỗi hệ thống: Không thể xử lý kỹ năng.");
+            handleApiError(e);
         } finally {
             setIsLoading(false);
         }
@@ -641,8 +700,6 @@ addLogEntry(msg);
         
         const { name, bio, characterClass, difficulty, gender, personality, goal } = details;
         
-        gameAIService.current = new GameAIService(difficulty);
-
         const classData = CLASSES[characterClass];
         const baseState = {
             ...INITIAL_PLAYER_STATE,
@@ -667,9 +724,13 @@ addLogEntry(msg);
         const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${characterClass} ${gender}. Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". Tôi tỉnh dậy trong một tàn tích hoang vắng. Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
 
         setIsLoading(true);
+        // This state update will trigger the useEffect to create the AI service
         setGameState(prevState => ({ ...prevState, phase: 'EXPLORING', narrative: "Câu chuyện của bạn sắp bắt đầu...", difficulty: difficulty }));
         
-        await handleAction({ text: "Bắt đầu", prompt: initialPrompt });
+        // Wait a tick for the service to be created before sending an action
+        setTimeout(async () => {
+            await handleAction({ text: "Bắt đầu", prompt: initialPrompt });
+        }, 100);
 
     }, [handleAction, recalculateStats, setPlayerState, setIsLoading, setGameState]);
 
@@ -719,14 +780,51 @@ addLogEntry(msg);
     const handleCancelExit = useCallback(() => {
         setIsExitConfirmOpen(false);
     }, [setIsExitConfirmOpen]);
+    
+    // API Key Manager Handlers
+    const handleSaveApiKeys = (keys: string[]) => {
+        const cleanedKeys = keys.filter(k => k.trim() !== '');
+        setUserApiKeys(cleanedKeys);
+        setApiSource('user');
+        setCurrentApiKeyIndex(0);
+        try {
+            localStorage.setItem(API_KEYS_STORAGE_KEY, JSON.stringify(cleanedKeys));
+            localStorage.setItem(API_SOURCE_STORAGE_KEY, 'user');
+        } catch(e) { console.error("Lỗi lưu API keys:", e); }
+        setNotification("Đã lưu và kích hoạt API key của bạn.");
+        setIsApiKeyManagerOpen(false);
+    };
+
+    const handleSetDefaultApiSource = () => {
+        setApiSource('default');
+        setCurrentApiKeyIndex(0);
+         try {
+            localStorage.setItem(API_SOURCE_STORAGE_KEY, 'default');
+        } catch(e) { console.error("Lỗi lưu nguồn API:", e); }
+        setNotification("Đã chuyển sang nguồn AI mặc định.");
+        setIsApiKeyManagerOpen(false);
+    };
 
 
     if (gameState.phase === 'TITLE_SCREEN') {
-        return <StartScreen 
-            onStartGame={handleStartGame} 
-            onLoadGame={loadGame} 
-            saveFileExists={saveFileExists}
-        />;
+        return (
+            <>
+                <StartScreen 
+                    onStartGame={handleStartGame} 
+                    onLoadGame={loadGame} 
+                    saveFileExists={saveFileExists}
+                    onOpenApiKeyManager={() => setIsApiKeyManagerOpen(true)}
+                />
+                <ApiKeyManager 
+                    isOpen={isApiKeyManagerOpen}
+                    onClose={() => setIsApiKeyManagerOpen(false)}
+                    onSave={handleSaveApiKeys}
+                    onSetDefault={handleSetDefaultApiSource}
+                    currentSource={apiSource}
+                    currentKeys={userApiKeys}
+                />
+            </>
+        );
     }
 
     if (gameState.phase === 'CHARACTER_CREATION') {

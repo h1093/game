@@ -146,8 +146,12 @@ const RESPONSE_SCHEMA = {
 export class GameAIService {
     private chat: Chat;
 
-    constructor(difficulty: Difficulty) {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    constructor(difficulty: Difficulty, apiKey: string) {
+        if (!apiKey) {
+            throw new Error("Không có API Key nào được cung cấp cho GameAIService.");
+        }
+        
+        const ai = new GoogleGenAI({ apiKey });
         
         let difficultyInstructions = '';
         switch (difficulty) {

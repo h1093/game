@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { GAME_TITLE } from '../constants';
 
@@ -18,6 +19,7 @@ interface StartScreenProps {
     onStartGame: () => void;
     onLoadGame: () => void;
     saveFileExists: boolean;
+    onOpenApiKeyManager: () => void;
 }
 
 const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
@@ -150,7 +152,7 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
 );
 
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists, onOpenApiKeyManager }) => {
     const [isUpdateLogOpen, setIsUpdateLogOpen] = useState(false);
 
     return (
@@ -184,6 +186,13 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
                         className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-all duration-300"
                     >
                         Có Gì Mới?
+                    </button>
+                     <button
+                        onClick={onOpenApiKeyManager}
+                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-all duration-300 flex items-center gap-2"
+                        title="Quản lý API Key Gemini"
+                    >
+                        <IconKey /> Quản lý API
                     </button>
                 </div>
             </div>

@@ -2,6 +2,8 @@
 import { PlayerState, CharacterClass, Difficulty, Gender } from './types';
 
 export const SAVE_KEY = "darkFantasyRPGSaveData";
+export const API_KEYS_STORAGE_KEY = "darkFantasyApiKeys";
+export const API_SOURCE_STORAGE_KEY = "darkFantasyApiSource";
 export const GAME_TITLE = "Vang Vọng của Bóng Tối";
 export const GAME_INTRO = "Bạn tỉnh dậy trong một vương quốc của hoàng hôn và hoang tàn. Không khí đặc quánh bụi của thời gian và mùi của đất sau mưa trên đá lạnh. Ký ức của bạn là một tấm thảm rách nát, chỉ còn lại một sợi duy nhất: một cái tên, được thì thầm trên gió... tên của bạn. Trước mắt bạn, những con đường rẽ vào bóng tối đang bao trùm. Bạn sẽ làm gì?";
 

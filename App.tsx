@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GameState, PlayerState, GameData, Choice, CharacterClass, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender } from './types';
 import { INITIAL_PLAYER_STATE, GAME_TITLE, CLASSES, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY } from './constants';
@@ -12,7 +11,7 @@ import CharacterCreationScreen from './components/CharacterCreationScreen';
 import InventoryScreen from './components/InventoryScreen';
 import EquipmentScreen from './components/EquipmentScreen';
 import CompanionsPanel from './components/CompanionsPanel';
-import QuestsPanel from './components/ArtPanel';
+import QuestsPanel from './components/QuestsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
 
 // SVG Icons
@@ -43,6 +42,7 @@ const IconEquipment = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+const MATURE_CONTENT_KEY = "darkFantasyMatureContent";
 
 const App: React.FC = () => {
     const [playerState, setPlayerState] = useState<PlayerState>(INITIAL_PLAYER_STATE);
@@ -72,6 +72,25 @@ const App: React.FC = () => {
     const [currentApiKeyIndex, setCurrentApiKeyIndex] = useState(0);
     const [activeApiKey, setActiveApiKey] = useState<string | undefined>(undefined);
 
+    // App settings
+    const [isMatureContent, setIsMatureContent] = useState<boolean>(false);
+
+    // Refs to ensure callbacks always have the latest state, preventing stale state bugs.
+    const playerStateRef = useRef(playerState);
+    useEffect(() => {
+        playerStateRef.current = playerState;
+    }, [playerState]);
+
+    const gameStateRef = useRef(gameState);
+    useEffect(() => {
+        gameStateRef.current = gameState;
+    }, [gameState]);
+
+    const addLogEntry = useCallback((message: string) => {
+        if (!message) return;
+        const timestamp = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        setLog(prevLog => [`[${timestamp}] ${message}`, ...prevLog].slice(0, 50));
+    }, [setLog]);
 
     useEffect(() => {
         try {
@@ -81,12 +100,16 @@ const App: React.FC = () => {
             // Load API Key settings
             const savedApiSource = localStorage.getItem(API_SOURCE_STORAGE_KEY) as 'default' | 'user' | null;
             const savedApiKeys = localStorage.getItem(API_KEYS_STORAGE_KEY);
+            const savedMatureContent = localStorage.getItem(MATURE_CONTENT_KEY);
 
             if (savedApiSource) {
                 setApiSource(savedApiSource);
             }
             if (savedApiKeys) {
                 setUserApiKeys(JSON.parse(savedApiKeys));
+            }
+            if (savedMatureContent) {
+                setIsMatureContent(JSON.parse(savedMatureContent));
             }
 
         } catch (e) {
@@ -103,26 +126,22 @@ const App: React.FC = () => {
         }
     }, [apiSource, userApiKeys, currentApiKeyIndex]);
 
-    // Effect to re-create the service when the key or difficulty changes
+    // Effect to re-create the service when the key, difficulty or mature setting changes
     useEffect(() => {
         if (activeApiKey && gameState.difficulty && (gameState.phase === 'EXPLORING' || gameState.phase === 'COMBAT')) {
             try {
-                gameAIService.current = new GameAIService(gameState.difficulty, activeApiKey);
-                addLogEntry(`Dịch vụ AI được khởi tạo với nguồn ${apiSource === 'default' ? 'mặc định' : 'người dùng'}.`);
+                // Do not re-initialize if it's the very first turn, as the story-start effect handles that.
+                if (gameState.turn > 0) {
+                    gameAIService.current = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent);
+                    addLogEntry(`Dịch vụ AI được khởi tạo lại với nguồn ${apiSource === 'default' ? 'mặc định' : 'người dùng'}. Chế độ 18+ ${isMatureContent ? 'bật' : 'tắt'}.`);
+                }
             } catch (error) {
                 console.error("Lỗi khởi tạo GameAIService:", error);
                 setNotification("Lỗi: Không thể khởi tạo dịch vụ AI. Vui lòng kiểm tra API key.");
             }
         }
-    }, [activeApiKey, gameState.difficulty, gameState.phase]);
+    }, [activeApiKey, gameState.difficulty, isMatureContent, apiSource, addLogEntry]);
 
-
-    const addLogEntry = useCallback((message: string) => {
-        if (!message) return;
-        const timestamp = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-        setLog(prevLog => [`[${timestamp}] ${message}`, ...prevLog].slice(0, 50));
-    }, [setLog]);
-    
 
     const recalculateStats = useCallback((currentState: PlayerState): PlayerState => {
         const newState = { ...currentState };
@@ -131,7 +150,9 @@ const App: React.FC = () => {
         let newMaxHp = currentState.baseMaxHp;
         let newMaxStamina = currentState.baseMaxStamina;
         let newMaxMana = currentState.baseMaxMana;
+        let newMaxSanity = currentState.baseMaxSanity;
 
+        // Equipment stats
         Object.values(currentState.equipment).forEach(item => {
             if (item && item.effect) {
                 newAttack += item.effect.attack || 0;
@@ -139,33 +160,63 @@ const App: React.FC = () => {
                 newMaxHp += item.effect.maxHp || 0;
                 newMaxStamina += item.effect.maxStamina || 0;
                 newMaxMana += item.effect.maxMana || 0;
+                newMaxSanity += item.effect.maxSanity || 0;
             }
         });
 
-        newState.attack = newAttack;
-        newState.defense = newDefense;
+        // Proficiency bonus
+        const equippedWeapon = currentState.equipment.weapon;
+        const weaponType = equippedWeapon?.weaponType || 'UNARMED';
+        const proficiency = currentState.proficiency[weaponType];
+        if (proficiency) {
+            const proficiencyBonus = proficiency.level - 1; // +1 attack/defense per level above 1
+            if (proficiencyBonus > 0) {
+                newAttack += proficiencyBonus;
+                newDefense += proficiencyBonus;
+            }
+        }
+        
+        // Sanity penalties
+        if (currentState.sanity < 50) {
+            newDefense -= 2;
+        }
+        if (currentState.sanity < 25) {
+            newDefense -= 2; // total -4 from base
+            newAttack -= 2;  // total -2 from base
+        }
+
+        // Mark of Sacrifice bonus
+        if (currentState.isMarked) {
+            newAttack += 2; // A small, desperate boost from the mark
+        }
+
+        newState.attack = Math.max(0, newAttack);
+        newState.defense = Math.max(0, newDefense);
         newState.maxHp = newMaxHp;
         newState.maxStamina = newMaxStamina;
         newState.maxMana = newMaxMana;
+        newState.maxSanity = newMaxSanity;
         
         // Clamp current stats to new max values
         newState.hp = Math.min(newState.hp, newState.maxHp);
         newState.stamina = Math.min(newState.stamina, newState.maxStamina);
         newState.mana = Math.min(newState.mana, newState.maxMana);
+        newState.sanity = Math.min(newState.sanity, newState.maxSanity);
 
         return newState;
     }, []);
 
     const saveGame = useCallback(() => {
-        if (gameState.phase !== 'EXPLORING' && gameState.phase !== 'COMBAT') {
+        // Use refs to get the latest state, preventing stale state bugs on save.
+        if (gameStateRef.current.phase !== 'EXPLORING' && gameStateRef.current.phase !== 'COMBAT') {
             setNotification("Chỉ có thể lưu trong quá trình chơi.");
             return;
         }
 
         try {
             const saveData = {
-                playerState,
-                gameState,
+                playerState: playerStateRef.current,
+                gameState: gameStateRef.current,
             };
             localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
             setSaveFileExists(true);
@@ -178,7 +229,7 @@ const App: React.FC = () => {
             setNotification(msg);
             addLogEntry(msg);
         }
-    }, [playerState, gameState, addLogEntry, setSaveFileExists, setNotification]);
+    }, [addLogEntry, setSaveFileExists, setNotification]);
 
     const loadGame = useCallback(() => {
         try {
@@ -189,14 +240,22 @@ const App: React.FC = () => {
                 if (savedData.playerState && savedData.gameState && savedData.gameState.difficulty) {
                     
                     const loadedPlayerState = savedData.playerState;
-                    // Ensure equipment field exists for older saves
-                    if (!loadedPlayerState.equipment) {
-                        loadedPlayerState.equipment = {};
+                    // Ensure fields exist for older saves
+                    if (!loadedPlayerState.equipment) loadedPlayerState.equipment = {};
+                    if (savedData.gameState.turn === undefined) savedData.gameState.turn = 0;
+                    if (!loadedPlayerState.proficiency) {
+                         loadedPlayerState.proficiency = INITIAL_PLAYER_STATE.proficiency;
                     }
-                     // Ensure turn field exists for older saves
-                    if (savedData.gameState.turn === undefined) {
-                        savedData.gameState.turn = 0;
+                    if (loadedPlayerState.sanity === undefined) {
+                        const classData = CLASSES[loadedPlayerState.class!];
+                        loadedPlayerState.baseMaxSanity = classData.stats.baseMaxSanity;
+                        loadedPlayerState.maxSanity = classData.stats.baseMaxSanity;
+                        loadedPlayerState.sanity = classData.stats.baseMaxSanity;
                     }
+                    if (loadedPlayerState.isMarked === undefined) {
+                        loadedPlayerState.isMarked = false;
+                    }
+
 
                     setPlayerState(recalculateStats(loadedPlayerState));
                     setGameState(savedData.gameState); // This will trigger the useEffect to create the AI service
@@ -234,8 +293,8 @@ const App: React.FC = () => {
         }
     }, [showTurnNotification]);
     
-    const handleApiError = (error: any) => {
-        const isAuthError = error.toString().includes('API_KEY') || error.toString().includes('permission');
+    const handleApiError = useCallback((error: any) => {
+        const isAuthError = error.toString().includes('API_KEY') || error.toString().includes('permission') || error.toString().includes('API Key');
         if (isAuthError && apiSource === 'user' && userApiKeys.length > 1) {
             const nextKeyIndex = (currentApiKeyIndex + 1) % userApiKeys.length;
             setCurrentApiKeyIndex(nextKeyIndex);
@@ -253,12 +312,14 @@ const App: React.FC = () => {
          else {
              const msg = "Một cơn gió lạnh lẽo thì thầm về những phép thuật bị lãng quên. (Lỗi API không xác định).";
              setNotification(msg);
-             setGameState(prevState => ({ ...prevState, narrative: msg }));
-             addLogEntry("Lỗi hệ thống: Không thể xử lý hành động do lỗi API.");
+             setGameState(prevState => ({ ...prevState, narrative: `${prevState.narrative}\n\n(Lỗi: ${msg})` }));
+             addLogEntry(`Lỗi hệ thống: Không thể xử lý hành động do lỗi API. ${error}`);
         }
-    };
+    }, [apiSource, userApiKeys, currentApiKeyIndex, addLogEntry, setNotification, setGameState, setCurrentApiKeyIndex]);
 
     const processGameData = useCallback((gameData: GameData) => {
+        let profLevelUpMessage: string | null = null;
+
         setGameState(prevState => {
              const newTurn = (prevState.phase === 'EXPLORING' || prevState.phase === 'COMBAT') ? prevState.turn + 1 : prevState.turn;
             if (newTurn > prevState.turn) {
@@ -280,10 +341,20 @@ const App: React.FC = () => {
                 const newHp = Math.max(0, newPlayerState.hp + (gameData.statusUpdate.hpChange || 0));
                 const newStamina = Math.max(0, Math.min(newPlayerState.maxStamina, newPlayerState.stamina + (gameData.statusUpdate.staminaChange || 0)));
                 const newMana = Math.max(0, Math.min(newPlayerState.maxMana, newPlayerState.mana + (gameData.statusUpdate.manaChange || 0)));
+                const newSanity = Math.max(0, Math.min(newPlayerState.maxSanity, newPlayerState.sanity + (gameData.statusUpdate.sanityChange || 0)));
                 const newCurrency = newPlayerState.currency + (gameData.statusUpdate.currencyChange || 0);
 
-                newPlayerState = { ...newPlayerState, hp: newHp, stamina: newStamina, mana: newMana, currency: newCurrency };
+                newPlayerState = { ...newPlayerState, hp: newHp, stamina: newStamina, mana: newMana, sanity: newSanity, currency: newCurrency };
                 
+                if (gameData.statusUpdate.isMarked && !newPlayerState.isMarked) {
+                    newPlayerState.isMarked = true;
+                    setTimeout(() => {
+                        const markMessage = "Một cảm giác nóng rát khắc vào da thịt bạn. Bạn đã bị đánh dấu. Bóng tối giờ đây sẽ biết tên bạn.";
+                        addLogEntry(markMessage);
+                        setNotification(markMessage);
+                    }, 50); // Delay slightly to not collide with other notifications
+                }
+
                 if (gameData.statusUpdate.bodyPartInjuries && gameData.statusUpdate.bodyPartInjuries.length > 0) {
                     const newBodyStatus = { ...newPlayerState.bodyStatus };
                     const newEquipment = { ...newPlayerState.equipment };
@@ -319,6 +390,25 @@ const App: React.FC = () => {
                 const newSkillsToAdd = gameData.skillsLearned.filter(s => !currentSkillIds.has(s.id));
                 if (newSkillsToAdd.length > 0) {
                      newPlayerState = { ...newPlayerState, skills: [...newPlayerState.skills, ...newSkillsToAdd] };
+                }
+            }
+
+            // Proficiency Update
+            if (gameData.proficiencyUpdate) {
+                const { weaponType, xpGained } = gameData.proficiencyUpdate;
+                const newProficiency = { ...newPlayerState.proficiency };
+                const currentProf = newProficiency[weaponType];
+                
+                if (currentProf) {
+                    const newXp = currentProf.xp + xpGained;
+                    if (newXp >= 100) {
+                        const newLevel = currentProf.level + 1;
+                        newProficiency[weaponType] = { level: newLevel, xp: newXp - 100 };
+                        profLevelUpMessage = `Sự thành thạo của bạn với ${weaponType} đã tăng lên cấp ${newLevel}!`;
+                    } else {
+                        newProficiency[weaponType] = { ...currentProf, xp: newXp };
+                    }
+                    newPlayerState = { ...newPlayerState, proficiency: newProficiency };
                 }
             }
 
@@ -396,10 +486,16 @@ const App: React.FC = () => {
             }
             newPlayerState = { ...newPlayerState, inventory: inventoryAfterDecay };
 
-            return newPlayerState;
+            // Recalculate stats at the end of all updates
+            return recalculateStats(newPlayerState);
         });
         
         const notificationParts: string[] = [];
+
+        if (profLevelUpMessage) {
+            notificationParts.push(profLevelUpMessage);
+        }
+
         const currencyChange = gameData.statusUpdate?.currencyChange || 0;
         if (currencyChange > 0) {
             notificationParts.push(`Bạn đã nhận được ${currencyChange} Mảnh Vỡ Linh Hồn.`);
@@ -428,13 +524,13 @@ const App: React.FC = () => {
             setNotification(message);
             addLogEntry(message);
         }
-    }, [addLogEntry, setGameState, setPlayerState, setNotification, setShowTurnNotification]);
+    }, [addLogEntry, setGameState, setPlayerState, setNotification, setShowTurnNotification, recalculateStats]);
 
     const handleAction = useCallback(async (choice: Choice) => {
         if (!gameAIService.current || isLoading) return;
 
         const staminaCost = choice.staminaCost || 0;
-        if (playerState.stamina < staminaCost) {
+        if (playerStateRef.current.stamina < staminaCost) {
             const msg = "Không đủ thể lực để thực hiện hành động này.";
             setNotification(msg);
             addLogEntry(msg);
@@ -457,7 +553,7 @@ const App: React.FC = () => {
                 console.error("Không thể phân tích phản hồi JSON từ AI:", e, "Phản hồi thô từ AI:", response);
                  gameData = {
                     narrative: "Một sự im lặng đáng lo ngại bao trùm. Con đường phía trước bị che khuất bởi một màn sương mờ của sự không chắc chắn. Có lẽ bạn nên thử một cái gì đó khác.",
-                    choices: gameState.choices,
+                    choices: gameStateRef.current.choices,
                     statusUpdate: null,
                     gameState: 'EXPLORING',
                     itemsFound: null,
@@ -467,6 +563,7 @@ const App: React.FC = () => {
                     companionUpdates: null,
                     questsAdded: null,
                     questUpdates: null,
+                    proficiencyUpdate: null,
                 };
             }
             processGameData(gameData);
@@ -476,7 +573,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [playerState, gameState, addLogEntry, isLoading, processGameData, setNotification, setIsLoading, setPlayerState, setGameState]);
+    }, [isLoading, addLogEntry, processGameData, setNotification, setIsLoading, setPlayerState, handleApiError]);
     
      const handleCustomAction = useCallback(async (actionText: string) => {
         if (!gameAIService.current || isLoading || !actionText.trim()) return;
@@ -497,7 +594,7 @@ const App: React.FC = () => {
                 console.error("Không thể phân tích phản hồi JSON từ AI cho hành động tùy chỉnh:", e, "Phản hồi thô từ AI:", response);
                  gameData = {
                     narrative: "Hành động của bạn dường như không gây ra hiệu ứng gì. Có lẽ thế giới không phản hồi lại với những ý định như vậy, hoặc có lẽ bạn cần phải thử một cách khác.",
-                    choices: gameState.choices,
+                    choices: gameStateRef.current.choices,
                     statusUpdate: null,
                     gameState: 'EXPLORING',
                     itemsFound: null,
@@ -507,6 +604,7 @@ const App: React.FC = () => {
                     companionUpdates: null,
                     questsAdded: null,
                     questUpdates: null,
+                    proficiencyUpdate: null,
                 };
             }
             processGameData(gameData);
@@ -516,20 +614,20 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [gameState, addLogEntry, isLoading, processGameData, setCustomActionInput, setIsLoading, setGameState]);
+    }, [isLoading, processGameData, setCustomActionInput, setIsLoading, handleApiError]);
 
 
     const handleUseSkill = useCallback(async (skill: Skill) => {
         if (!gameAIService.current || isLoading) return;
 
-        if (playerState.skillCooldowns[skill.id] > 0) {
+        if (playerStateRef.current.skillCooldowns[skill.id] > 0) {
             const msg = `Kỹ năng ${skill.name} đang trong thời gian hồi.`;
             setNotification(msg);
             addLogEntry(msg);
             return;
         }
 
-        const resourcePool = skill.costType === 'MANA' ? playerState.mana : playerState.stamina;
+        const resourcePool = skill.costType === 'MANA' ? playerStateRef.current.mana : playerStateRef.current.stamina;
         if (resourcePool < skill.cost) {
             const msg = `Không đủ ${skill.costType === 'MANA' ? 'mana' : 'thể lực'} để dùng ${skill.name}.`;
             setNotification(msg);
@@ -561,7 +659,7 @@ const App: React.FC = () => {
                  console.error("Không thể phân tích phản hồi JSON từ AI:", e, "Phản hồi thô từ AI:", response);
                  gameData = {
                     narrative: `Năng lượng từ kỹ năng ${skill.name} của bạn bị tiêu tan vào không khí một cách vô hại. Dường như có gì đó đã chặn nó lại.`,
-                    choices: gameState.choices,
+                    choices: gameStateRef.current.choices,
                     statusUpdate: null,
                     gameState: 'EXPLORING',
                     itemsFound: null,
@@ -571,6 +669,7 @@ const App: React.FC = () => {
                     companionUpdates: null,
                     questsAdded: null,
                     questUpdates: null,
+                    proficiencyUpdate: null,
                 };
             }
             processGameData(gameData);
@@ -580,27 +679,31 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [playerState, gameState, addLogEntry, isLoading, processGameData, setNotification, setIsLoading, setPlayerState, setGameState]);
+    }, [isLoading, addLogEntry, processGameData, setNotification, setIsLoading, setPlayerState, handleApiError]);
 
     const handleUseItem = useCallback((itemToUse: Item) => {
         if (itemToUse.type === 'POTION') {
             setPlayerState(prev => {
                 const hpGain = itemToUse.effect?.hp || 0;
                 const manaGain = itemToUse.effect?.mana || 0;
+                const sanityGain = itemToUse.effect?.sanity || 0;
 
-                if (hpGain > 0 && prev.hp === prev.maxHp) {
-                    setNotification("Máu của bạn đã đầy.");
-                    return prev;
-                }
-                if (manaGain > 0 && prev.mana === prev.maxMana) {
-                    setNotification("Mana của bạn đã đầy.");
+                const canUse = (hpGain > 0 && prev.hp < prev.maxHp) || 
+                               (manaGain > 0 && prev.mana < prev.maxMana) ||
+                               (sanityGain > 0 && prev.sanity < prev.maxSanity);
+
+                if (!canUse) {
+                    setNotification("Bạn không cần dùng nó bây giờ.");
                     return prev;
                 }
                 
                 const healedHp = Math.min(prev.maxHp, prev.hp + hpGain);
                 const restoredMana = Math.min(prev.maxMana, prev.mana + manaGain);
+                const restoredSanity = Math.min(prev.maxSanity, prev.sanity + sanityGain);
+                
                 const hpRestored = healedHp - prev.hp;
                 const manaRestored = restoredMana - prev.mana;
+                const sanityRestored = restoredSanity - prev.sanity;
                 
                 const itemIndex = prev.inventory.findIndex(item => item.id === itemToUse.id);
                 if (itemIndex > -1) {
@@ -610,17 +713,18 @@ const App: React.FC = () => {
                     let msgParts: string[] = [];
                     if (hpRestored > 0) msgParts.push(`hồi phục ${hpRestored} máu`);
                     if (manaRestored > 0) msgParts.push(`hồi phục ${manaRestored} mana`);
+                    if (sanityRestored > 0) msgParts.push(`khôi phục ${sanityRestored} Tâm Trí`);
                     
                     const msg = `Bạn đã dùng một ${itemToUse.name} và ${msgParts.join(' và ')}.`;
                     setNotification(msg);
-addLogEntry(msg);
+                    addLogEntry(msg);
                     
-                    return {...prev, hp: healedHp, mana: restoredMana, inventory: newInventory };
+                    return recalculateStats({...prev, hp: healedHp, mana: restoredMana, sanity: restoredSanity, inventory: newInventory });
                 }
                 return prev;
             });
         }
-    }, [addLogEntry, setPlayerState, setNotification]);
+    }, [addLogEntry, setPlayerState, setNotification, recalculateStats]);
 
     const handleEquipItem = useCallback((itemToEquip: Item) => {
         if (!itemToEquip.equipmentSlot) return;
@@ -696,8 +800,7 @@ addLogEntry(msg);
         setIsNewGameConfirmOpen(false);
     }, [setIsNewGameConfirmOpen]);
 
-    const handleCharacterCreation = useCallback(async (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => {
-        
+    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => {
         const { name, bio, characterClass, difficulty, gender, personality, goal } = details;
         
         const classData = CLASSES[characterClass];
@@ -713,26 +816,86 @@ addLogEntry(msg);
             hp: classData.stats.baseMaxHp,
             stamina: classData.stats.baseMaxStamina,
             mana: classData.stats.baseMaxMana,
+            sanity: classData.stats.baseMaxSanity,
         };
         
         setPlayerState(recalculateStats(baseState));
-
-        const goalPrompt = goal
-            ? `và mục tiêu chính của họ là "${goal}"`
-            : "và họ đang tìm kiếm mục tiêu cho mình trong thế giới hoang tàn này";
-
-        const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${characterClass} ${gender}. Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". Tôi tỉnh dậy trong một tàn tích hoang vắng. Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
-
         setIsLoading(true);
-        // This state update will trigger the useEffect to create the AI service
-        setGameState(prevState => ({ ...prevState, phase: 'EXPLORING', narrative: "Câu chuyện của bạn sắp bắt đầu...", difficulty: difficulty }));
         
-        // Wait a tick for the service to be created before sending an action
-        setTimeout(async () => {
-            await handleAction({ text: "Bắt đầu", prompt: initialPrompt });
-        }, 100);
+        // Set EXPLORING phase, which will trigger the story generation useEffect.
+        setGameState(prevState => ({ 
+            ...prevState, 
+            phase: 'EXPLORING', 
+            narrative: "Câu chuyện của bạn sắp bắt đầu...", 
+            difficulty: difficulty, 
+            choices: [], 
+            turn: 0 
+        }));
+    }, [recalculateStats, setPlayerState, setIsLoading, setGameState]);
 
-    }, [handleAction, recalculateStats, setPlayerState, setIsLoading, setGameState]);
+    // This effect runs once to generate the initial story after character creation.
+    useEffect(() => {
+        const startStory = async () => {
+            // Only run on the very first turn when the game enters the exploring phase and is loading.
+            if (gameState.phase === 'EXPLORING' && gameState.turn === 0 && isLoading) {
+                try {
+                    if (!activeApiKey) {
+                        throw new Error("API Key không hoạt động hoặc chưa được cấu hình.");
+                    }
+                    if (!gameState.difficulty) {
+                        throw new Error("Độ khó chưa được thiết lập.");
+                    }
+                    
+                    // Construct the initial prompt using the latest player state from the ref.
+                    const { name, class: characterClass, gender, personality, goal, bio } = playerStateRef.current;
+                    const goalPrompt = goal
+                        ? `và mục tiêu chính của họ là "${goal}"`
+                        : "và họ đang tìm kiếm mục tiêu cho mình trong thế giới hoang tàn này";
+                    const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${characterClass} ${gender}. Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". Tôi tỉnh dậy trong một tàn tích hoang vắng. Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
+
+                    // Explicitly create the service here to avoid race conditions.
+                    const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent);
+                    gameAIService.current = service;
+                    addLogEntry(`Dịch vụ AI được khởi tạo với nguồn ${apiSource === 'default' ? 'mặc định' : 'người dùng'}. Chế độ 18+ ${isMatureContent ? 'bật' : 'tắt'}.`);
+
+                    const response = await service.sendAction(initialPrompt);
+                    let gameData: GameData;
+
+                    try {
+                        const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+                        gameData = JSON.parse(cleanResponse);
+                    } catch (e) {
+                        console.error("Không thể phân tích phản hồi JSON từ AI:", e, "Phản hồi thô từ AI:", response);
+                        gameData = {
+                            narrative: "Một sự im lặng đáng lo ngại bao trùm. Con đường phía trước bị che khuất bởi một màn sương mờ của sự không chắc chắn. Có lẽ bạn nên thử một cái gì đó khác.",
+                            choices: [],
+                            statusUpdate: null,
+                            gameState: 'EXPLORING',
+                            itemsFound: null,
+                            skillsLearned: null,
+                            companionsAdded: null,
+                            companionsRemoved: null,
+                            companionUpdates: null,
+                            questsAdded: null,
+                            questUpdates: null,
+                            proficiencyUpdate: null,
+                        };
+                    }
+                    processGameData(gameData);
+                } catch (e) {
+                    console.error("Lỗi khi bắt đầu câu chuyện:", e);
+                    handleApiError(e);
+                    // On failure, return to character creation screen
+                    setGameState(g => ({...g, phase: 'CHARACTER_CREATION', difficulty: null, narrative: ''}));
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        startStory();
+    }, [gameState.phase, gameState.turn, gameState.difficulty, isLoading, activeApiKey, isMatureContent, apiSource, addLogEntry, processGameData, handleApiError]);
+
 
     const restartGame = useCallback(() => {
         setPlayerState(INITIAL_PLAYER_STATE);
@@ -755,11 +918,11 @@ addLogEntry(msg);
 
 
     const handleDeathAndRestart = useCallback(() => {
-        if (gameState.difficulty === 'Ác Mộng') {
+        if (gameState.difficulty === 'Ác Mộng' || gameState.difficulty === 'Địa Ngục' || gameState.difficulty === 'Đày Đoạ') {
             try {
                 localStorage.removeItem(SAVE_KEY);
                 setSaveFileExists(false);
-                addLogEntry("Tiến trình đã được xóa do nhân vật gục ngã trong chế độ Ác Mộng.");
+                addLogEntry(`Tiến trình đã được xóa do nhân vật gục ngã trong chế độ ${gameState.difficulty}.`);
             } catch (e) {
                 console.error("Không thể xóa dữ liệu đã lưu khi chết:", e);
             }
@@ -805,6 +968,17 @@ addLogEntry(msg);
         setIsApiKeyManagerOpen(false);
     };
 
+    const handleToggleMatureContent = useCallback(() => {
+        setIsMatureContent(prev => {
+            const newState = !prev;
+            try {
+                localStorage.setItem(MATURE_CONTENT_KEY, JSON.stringify(newState));
+            } catch (e) { console.error("Không thể lưu cài đặt nội dung người lớn", e); }
+            setNotification(`Nội dung người lớn ${newState ? 'đã được bật' : 'đã được tắt'}.`);
+            return newState;
+        });
+    }, [setNotification]);
+
 
     if (gameState.phase === 'TITLE_SCREEN') {
         return (
@@ -814,6 +988,8 @@ addLogEntry(msg);
                     onLoadGame={loadGame} 
                     saveFileExists={saveFileExists}
                     onOpenApiKeyManager={() => setIsApiKeyManagerOpen(true)}
+                    isMatureContent={isMatureContent}
+                    onToggleMatureContent={handleToggleMatureContent}
                 />
                 <ApiKeyManager 
                     isOpen={isApiKeyManagerOpen}

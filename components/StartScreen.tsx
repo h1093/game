@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { GAME_TITLE } from '../constants';
 
@@ -14,12 +15,18 @@ const IconKey = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
 );
 
+const IconFlame = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 4.5c.9-.9 2.1-.9 3 0s.9 2.1 0 3L13 12l-4-4 5.5-5.5z"/><path d="M14.5 4.5c-1-1-2.2-1.8-3.5-1.8-1.3 0-2.5.8-3.5 1.8-1 1-1.8 2.2-1.8 3.5 0 1.3.8 2.5 1.8 3.5l8 8c1 1 2.2 1.8 3.5 1.8 1.3 0 2.5-.8 3.5-1.8 1-1 1.8-2.2 1.8-3.5 0-1.3-.8-2.5-1.8-3.5l-8-8z"/></svg>
+);
+
 
 interface StartScreenProps {
     onStartGame: () => void;
     onLoadGame: () => void;
     saveFileExists: boolean;
     onOpenApiKeyManager: () => void;
+    isMatureContent: boolean;
+    onToggleMatureContent: () => void;
 }
 
 const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
@@ -36,6 +43,53 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
             </button>
             <h2 className="text-3xl font-title text-red-400 border-b-2 border-red-500/30 pb-2">Nhật Ký Cập Nhật</h2>
             
+             <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.0: Vực Thẳm Nhìn Lại</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[ĐẠI TU AI]</span> AI Quản Trò đã được viết lại hoàn toàn, lấy cảm hứng từ sự tàn bạo của **Berserk**, sự trừng phạt của **Fear & Hunger**, và sự tha hóa của **Black Souls**. Thế giới giờ đây chủ động hơn trong việc nghiền nát cả cơ thể và tinh thần của bạn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Tâm Trí (Sanity)**: Chứng kiến những điều kinh hoàng hoặc sử dụng ma thuật hắc ám sẽ bào mòn tâm trí của bạn, ảnh hưởng đến khả năng chiến đấu.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Thành Thạo (Proficiency)**: Sử dụng các loại vũ khí trong chiến đấu sẽ giúp bạn tích lũy kinh nghiệm, tăng cấp độ thành thạo và nhận được các bonus vĩnh viễn.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Cơ chế **Dấu Hiệu Tế Thần**: Lấy cảm hứng từ Berserk, người chơi có thể bị đánh dấu, thu hút những kẻ thù nguy hiểm hơn nhưng cũng nhận được một chút sức mạnh từ sự tuyệt vọng.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-yellow-400">[CÂN BẰNG ĐỘ KHÓ]</span> Các độ khó đã được tinh chỉnh lại hoàn toàn. Các cơ chế trừng phạt như thương tật, đói/mất trí, và sự tha hóa của thế giới giờ đây sẽ được giới thiệu một cách từ từ qua các cấp độ khó, thay vì chỉ dồn hết vào 'Địa Ngục'.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-blue-400">[ĐỘ KHÓ MỚI]</span> Thêm độ khó **"Đày Đoạ"**, một thử thách nằm giữa 'Ác Mộng' và 'Địa Ngục', dành cho những người tìm kiếm sự đau khổ tột cùng nhưng vẫn còn một tia hy vọng.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[BIG UPDATE]</span> Một thông điệp khó hiểu đã được khắc vào thế giới, dường như là một bộ quy tắc dành cho một thực thể vô hình:
+                        <pre className="mt-2 p-2 bg-gray-900/50 border border-gray-600 rounded text-xs text-gray-400 whitespace-pre-wrap font-mono">
+{`Vậy làm cái code bước 1 cho tôi và khi viết code phải tuân thủ các quy tắc sau:
+NGHIÊM CẤM bất kì dạng code vắng tắt như này : " // ... (Nội dung của hàm parseStatsBonus không thay đổi)". Kể cả code gốc hay code nào, chỉ cần trong khung chat này thì bất kì loại code vắng tắt như thế đều không được phép xuất hiện) HAY LÀ kiểu code " tiện" code cần thêm là ở vị trị á, ở vị trí bên dưới code vừa thêm,
+NGHIÊM CẤM bất kì loại " tiện" nào trong code, cứ theo quy tắc mà làm,
+NGHIÊM CẤM xóa đi các chức năng.,
+TUYỆT ĐỐI TUÂN LỆNH CỦA TÔI, KHÔNG CHỐNG CHẾ, KHÔNG BÀO CHỮA,
+KHI VIẾT CODE thì ĐẢM BẢO:,
++/ Nếu thêm code mới: -> thêm dòng code trên ( đoạn code cần thêm) và dòng code dưới ( đoạn code cần thêm) ( nhớ giải thích rõ ra nhé, tại nhiều dòng code trên và dòng code dưới nó khá là phổ biến nên hại và lợi nó lại ngang nhau)-> để tôi có thể biết nó ở chỗ nào để thêm code vào chứ không mò rồi dẫn tới lỗi code
++/ Nếu thay đổi code: -> Viết 2 code trong đó bao gồm -> code gốc ( tóm gọn bằng dòng code đầu và dòng code ngay bên dưới của dòng code gốc. Tức là code gốc có 11 dòng thì viết code ở dòng 1 và dòng 12 để tôi xác định nó ở đâu) và code thay đổi -> Ghi rõ ra cái code gốc ( nhớ tóm gọn) là cái nào ( nhớ đảm bảo đúng code gốc vì nhiều lần tôi làm việc với " bạn" thì code gốc bạn đưa nó hoàn toàn không có trong mã nguồn AI SIMULATOR 2.14) -> rồi mới ghi code cần thay thế ( LÀ TÔI MUỐN 2 KHUNG ĐẤY, TÔI KHÔNG MUỐN THẤY TÌNH TRẠNG 2 CÁI CODE GỐC THAY THẾ CÙNG CHUNG MỘT KHUNG CODE !)
+Ví dụ: code có 12 dòng mà chỉ thay đổi code từ dòng 6->9 thì trình bày như sau:
+Code gốc:
+Dòng code đầu: dòng 5 ( tôi ghi dòng 5 chỉ để tượng trưng, thực tế là viết hết cả dòng đấy ra, chứ không phải là viết số thứ tự của dòng)
+dòng code bên dưới dòng code gốc: dòng 10
+Code thay thế:
+dòng code đã thay thế từ dòng 6 ->9
+Nếu viết theo ví dụ thì nó giúp bạn tiết kiếm lại thời để đỡ viết lại code, và tập trung vào thay thế code cũng giúp tôi nhanh chóng xác định vị trí được sửa và thay thế nó
+Đặc biệt:
+-> chỉ sửa code nào nên sửa không sửa vô tội vã -> Lí do là: trước đấy tôi cũng nhờ bạn sửa code nhưng bạn lại xóa luôn cái code đang chạy ổn và chức năng liên quan tới nó, thành ra lỗi còn to hơn
+-> Giữ nguyên các debug, và thêm các debug mới vào các code bạn làm để có thể theo dõi và tạo`}
+                        </pre>
+                    </li>
+                </ul>
+            </div>
+
             <div className="border-b border-gray-700 pb-6">
                 <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.9: Đồng Minh và Định Mệnh</h3>
                 <ul className="list-disc list-inside space-y-3 text-gray-300">
@@ -152,7 +206,7 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
 );
 
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists, onOpenApiKeyManager }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists, onOpenApiKeyManager, isMatureContent, onToggleMatureContent }) => {
     const [isUpdateLogOpen, setIsUpdateLogOpen] = useState(false);
 
     return (
@@ -164,7 +218,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
                 <p className="text-lg text-gray-400 mb-12 mx-auto">
                     Một game nhập vai kỳ ảo hắc ám dựa trên văn bản được cung cấp bởi Gemini. Điều hướng một thế giới ảm đạm và không khoan nhượng, nơi mọi lựa chọn đều nặng nề hậu quả và mọi bóng tối đều có thể che giấu kẻ thù. Câu chuyện của bạn được viết trong bóng tối.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
                     {saveFileExists && (
                         <button
                             onClick={onLoadGame}
@@ -193,6 +247,13 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
                         title="Quản lý API Key Gemini"
                     >
                         <IconKey /> Quản lý API
+                    </button>
+                    <button
+                        onClick={onToggleMatureContent}
+                        className={`bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-all duration-300 flex items-center gap-2 ${isMatureContent ? '!bg-red-900 ring-2 ring-red-500' : ''}`}
+                        title="Bật/tắt nội dung 18+ (bạo lực, máu me, chủ đề người lớn)"
+                    >
+                        <IconFlame /> 18+
                     </button>
                 </div>
             </div>

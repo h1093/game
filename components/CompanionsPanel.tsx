@@ -24,7 +24,7 @@ const CompanionsPanel: React.FC<CompanionsPanelProps> = ({ companions }) => {
             <div className="space-y-4">
                 {companions.length > 0 ? (
                     companions.map((companion) => {
-                        const hpPercentage = companion.maxHp > 0 ? (companion.hp / companion.maxHp) * 100 : 0;
+                        const hpPercentage = companion.maxHp > 0 ? Math.min(100, (companion.hp / companion.maxHp) * 100) : 0;
                         return (
                             <div key={companion.id}>
                                 <div className="flex justify-between items-center mb-1">

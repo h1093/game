@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 // SVG Icons
@@ -49,7 +48,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ isOpen, onClose, onSave, 
                 <h2 className="text-2xl font-title text-red-400 text-center">Quản Lý Nguồn AI</h2>
 
                 {/* Default Source Section */}
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                <div className={`bg-gray-800/50 p-4 rounded-lg border ${currentSource === 'default' ? 'border-blue-500' : 'border-gray-700'} transition-colors duration-300`}>
                     <h3 className="text-lg font-semibold text-gray-200 mb-3">Nguồn AI Mặc Định</h3>
                     <button
                         onClick={onSetDefault}
@@ -58,7 +57,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ isOpen, onClose, onSave, 
                         <IconSparkles /> Sử Dụng Gemini AI Mặc Định
                     </button>
                     {currentSource === 'default' && (
-                         <p className="text-green-400 text-center font-semibold mt-2 animate-pulse">Đang hoạt động</p>
+                         <p className="text-blue-400 text-center font-semibold mt-2 animate-pulse">Đang hoạt động</p>
                     )}
                 </div>
 
@@ -69,14 +68,14 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ isOpen, onClose, onSave, 
                 </div>
 
                 {/* User API Key Section */}
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                <div className={`bg-gray-800/50 p-4 rounded-lg border ${currentSource === 'user' ? 'border-red-500' : 'border-gray-700'} transition-colors duration-300`}>
                     <h3 className="text-lg font-semibold text-gray-200 mb-2">Sử Dụng API Key Của Bạn</h3>
                      <textarea
                         value={keysInput}
                         onChange={(e) => setKeysInput(e.target.value)}
                         placeholder={"ví dụ\napikey1\napikey2\napikeyN"}
                         rows={5}
-                        className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition text-sm"
+                        className={`w-full bg-gray-900 border ${currentSource === 'user' ? 'border-red-500/40' : 'border-gray-600'} rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition text-sm text-white placeholder:text-gray-500`}
                         aria-label="Nhập các API Key của bạn"
                      />
                      <p className="text-xs text-gray-400 mt-2">
@@ -91,7 +90,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ isOpen, onClose, onSave, 
                         Lưu và Sử Dụng Các Key Này
                     </button>
                     {currentSource === 'user' && (
-                         <p className="text-green-400 text-center font-semibold mt-2 animate-pulse">Đang hoạt động</p>
+                         <p className="text-red-400 text-center font-semibold mt-2 animate-pulse">Đang hoạt động</p>
                     )}
                 </div>
 

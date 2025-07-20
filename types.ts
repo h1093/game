@@ -1,6 +1,8 @@
 export type CharacterClass = 'Warrior' | 'Rogue' | 'Scholar';
-export type Difficulty = 'Thử Thách' | 'Ác Mộng';
+export type Difficulty = 'Thử Thách' | 'Ác Mộng' | 'Đày Đoạ' | 'Địa Ngục';
 export type Gender = 'Nam' | 'Nữ' | 'Khác';
+export type WeaponType = 'SWORD' | 'AXE' | 'DAGGER' | 'MACE' | 'SPEAR' | 'BOW' | 'STAFF' | 'UNARMED';
+
 
 export type ItemType = 'POTION' | 'WEAPON' | 'ARMOR' | 'KEY' | 'MISC' | 'RING' | 'AMULET';
 export type EquipmentSlot = 'weapon' | 'armor' | 'ring1' | 'ring2';
@@ -12,14 +14,17 @@ export interface Item {
     description: string;
     type: ItemType;
     equipmentSlot?: EquipmentSlot;
+    weaponType?: WeaponType;
     effect?: {
         hp?: number;
         mana?: number;
+        sanity?: number;
         attack?: number;
         defense?: number;
         maxHp?: number;
         maxStamina?: number;
         maxMana?: number;
+        maxSanity?: number;
     };
     isSeveredPart?: boolean;
     decayTimer?: number; // Số lượt cho đến khi bị thối rữa
@@ -68,6 +73,8 @@ export interface PlayerState {
     maxStamina: number;
     mana: number;
     maxMana: number;
+    sanity: number;
+    maxSanity: number;
     // Total stats (base + equipment)
     attack: number;
     defense: number;
@@ -77,6 +84,7 @@ export interface PlayerState {
     baseMaxHp: number;
     baseMaxStamina: number;
     baseMaxMana: number;
+    baseMaxSanity: number;
 
     currency: number;
     name: string;
@@ -92,6 +100,8 @@ export interface PlayerState {
     companions: Companion[];
     quests: Quest[];
     bodyStatus: Record<BodyPart, InjuryLevel>;
+    proficiency: Record<WeaponType, { level: number; xp: number }>;
+    isMarked: boolean; // Dấu Hiệu Tế Thần
 }
 
 export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY';
@@ -115,8 +125,10 @@ export interface StatusUpdate {
     hpChange: number;
     staminaChange?: number;
     manaChange?: number;
+    sanityChange?: number;
     currencyChange?: number;
     bodyPartInjuries?: { part: BodyPart; level: InjuryLevel }[];
+    isMarked?: boolean; // AI có thể đặt thành true để áp dụng Dấu Hiệu Tế Thần
 }
 
 export interface CompanionUpdate {
@@ -127,6 +139,11 @@ export interface CompanionUpdate {
 export interface QuestUpdate {
     id: string;
     status: QuestStatus;
+}
+
+export interface ProficiencyUpdate {
+    weaponType: WeaponType;
+    xpGained: number;
 }
 
 
@@ -142,4 +159,5 @@ export interface GameData {
     companionUpdates: CompanionUpdate[] | null;
     questsAdded: Quest[] | null;
     questUpdates: QuestUpdate[] | null;
+    proficiencyUpdate?: ProficiencyUpdate | null;
 }

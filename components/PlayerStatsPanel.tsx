@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { PlayerState } from '../types';
 import BodyStatusFigure from './BodyStatusFigure';
@@ -47,14 +48,29 @@ const IconSparkSpirit = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+const IconBrain = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.94.39 2.5 2.5 0 0 1-2.06-2.43V6.5A2.5 2.5 0 0 1 7.5 4h1a2.5 2.5 0 0 1 1-2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.94.39 2.5 2.5 0 0 0 2.06-2.43V6.5A2.5 2.5 0 0 0 16.5 4h-1a2.5 2.5 0 0 0-1-2Z"/></svg>
+);
+
+const IconMarkOfSacrifice = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M12 3c-1.8.4-3.3 1.2-4.5 2.4-2.4 2.4-3.6 5.6-3.4 9.1.2 4.1 2.3 7.8 5.7 10.1 1.7 1.1 3.5 1.4 5.2.4"/>
+        <path d="M12 3c1.8.4 3.3 1.2 4.5 2.4 2.4 2.4 3.6 5.6 3.4 9.1-.2 4.1-2.3 7.8-5.7 10.1-1.7 1.1-3.5 1.4-5.2.4"/>
+        <path d="M12 3v18"/>
+        <path d="M8 12h8"/>
+    </svg>
+);
+
+
 interface PlayerStatsPanelProps {
     playerState: PlayerState;
 }
 
 const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState }) => {
-    const hpPercentage = playerState.maxHp > 0 ? (playerState.hp / playerState.maxHp) * 100 : 0;
-    const staminaPercentage = playerState.maxStamina > 0 ? (playerState.stamina / playerState.maxStamina) * 100 : 0;
-    const manaPercentage = playerState.maxMana > 0 ? (playerState.mana / playerState.maxMana) * 100 : 0;
+    const hpPercentage = playerState.maxHp > 0 ? Math.min(100, (playerState.hp / playerState.maxHp) * 100) : 0;
+    const staminaPercentage = playerState.maxStamina > 0 ? Math.min(100, (playerState.stamina / playerState.maxStamina) * 100) : 0;
+    const manaPercentage = playerState.maxMana > 0 ? Math.min(100, (playerState.mana / playerState.maxMana) * 100) : 0;
+    const sanityPercentage = playerState.maxSanity > 0 ? Math.min(100, (playerState.sanity / playerState.maxSanity) * 100) : 0;
 
     const attackBonus = playerState.attack - playerState.baseAttack;
     const defenseBonus = playerState.defense - playerState.baseDefense;
@@ -67,7 +83,15 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState }) => {
                 {/* Top Section: Name/Class and Body Figure */}
                 <div className="flex justify-between items-center">
                     <div>
-                        <h3 className="text-2xl font-bold flex items-center gap-2 text-gray-200"><IconUser /> {playerState.name}</h3>
+                        <h3 className="text-2xl font-bold flex items-center gap-2 text-gray-200">
+                            <IconUser /> 
+                            <span>{playerState.name}</span>
+                            {playerState.isMarked && (
+                                <span title="Dấu Hiệu Tế Thần: Bạn bị săn đuổi. Sức mạnh tăng lên từ sự tuyệt vọng.">
+                                    <IconMarkOfSacrifice className="w-6 h-6 text-red-500 animate-pulse" />
+                                </span>
+                            )}
+                        </h3>
                         <p className="text-lg font-semibold font-title text-red-300 mt-1">{playerState.class}</p>
                     </div>
                     <div className="flex-shrink-0">
@@ -113,6 +137,18 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState }) => {
                             ></div>
                         </div>
                     </div>
+                     <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="font-bold text-gray-200 flex items-center gap-2"><IconBrain className="text-cyan-500"/> Tâm Trí</span>
+                            <span className="text-sm font-mono bg-gray-700 px-2 py-1 rounded">{playerState.sanity} / {playerState.maxSanity}</span>
+                        </div>
+                        <div className="w-full bg-gray-600 rounded-full h-4 border border-gray-500">
+                            <div
+                                className="bg-cyan-600 h-full rounded-full transition-all duration-500 ease-out"
+                                style={{ width: `${sanityPercentage}%` }}
+                            ></div>
+                        </div>
+                    </div>
                 </div>
                 
                 {/* Sub-stats */}
@@ -121,14 +157,14 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState }) => {
                         <span className="font-bold text-gray-300 flex items-center justify-center gap-2 text-sm"><IconTrendingUp /> Tấn Công</span>
                         <span className="text-lg font-mono text-white">
                             {playerState.attack}
-                            {attackBonus > 0 && <span className="text-green-400 text-sm ml-1">(+{attackBonus})</span>}
+                            {attackBonus !== 0 && <span className={attackBonus > 0 ? "text-green-400 text-sm ml-1" : "text-red-400 text-sm ml-1"}>({attackBonus > 0 ? `+${attackBonus}` : attackBonus})</span>}
                         </span>
                     </div>
                     <div className="bg-gray-700/50 p-2 rounded-md">
                         <span className="font-bold text-gray-300 flex items-center justify-center gap-2 text-sm"><IconShield /> Phòng Thủ</span>
                          <span className="text-lg font-mono text-white">
                             {playerState.defense}
-                            {defenseBonus > 0 && <span className="text-green-400 text-sm ml-1">(+{defenseBonus})</span>}
+                            {defenseBonus !== 0 && <span className={defenseBonus > 0 ? "text-green-400 text-sm ml-1" : "text-red-400 text-sm ml-1"}>({defenseBonus > 0 ? `+${defenseBonus}` : defenseBonus})</span>}
                         </span>
                     </div>
                     <div className="bg-gray-700/50 p-2 rounded-md">

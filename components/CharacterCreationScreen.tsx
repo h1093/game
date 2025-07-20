@@ -166,7 +166,7 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
                                     
                                     <div className="mt-4 pt-2 border-t border-gray-600/50 space-y-3 text-xs">
                                         <div>
-                                            <h4 className="font-bold flex items-center gap-1 text-green-400"><IconThumbsUp /> Điểm Mạnh</h4>
+                                            <h4 className="font-bold flex items-baseline gap-1 text-green-400"><IconThumbsUp /> Điểm Mạnh</h4>
                                             <ul className="list-disc list-inside text-gray-300 pl-2">
                                                 {CLASSES[className].strengths.map((strength, i) => (
                                                     <li key={i}>{strength}</li>
@@ -174,7 +174,7 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
                                             </ul>
                                         </div>
                                         <div>
-                                            <h4 className="font-bold flex items-center gap-1 text-red-400"><IconThumbsDown /> Điểm Yếu</h4>
+                                            <h4 className="font-bold flex items-baseline gap-1 text-red-400"><IconThumbsDown /> Điểm Yếu</h4>
                                             <ul className="list-disc list-inside text-gray-300 pl-2">
                                                 {CLASSES[className].weaknesses.map((weakness, i) => (
                                                     <li key={i}>{weakness}</li>

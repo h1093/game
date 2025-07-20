@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, Chat } from "@google/genai";
 import { Difficulty } from '../types';
 
@@ -10,16 +9,19 @@ const ITEM_SCHEMA = {
         description: { type: Type.STRING, description: "Một mô tả ngắn gọn, đầy không khí về vật phẩm." },
         type: { type: Type.STRING, 'enum': ['POTION', 'WEAPON', 'ARMOR', 'KEY', 'MISC', 'RING', 'AMULET'], description: "Loại của vật phẩm." },
         equipmentSlot: { type: Type.STRING, 'enum': ['weapon', 'armor', 'ring1', 'ring2'], nullable: true, description: "Ô trang bị mà vật phẩm này thuộc về, nếu có." },
+        weaponType: { type: Type.STRING, 'enum': ['SWORD', 'AXE', 'DAGGER', 'MACE', 'SPEAR', 'BOW', 'STAFF', 'UNARMED'], nullable: true, description: "Loại vũ khí, nếu vật phẩm là một vũ khí. Phải được đặt nếu type là 'WEAPON'." },
         effect: {
             type: Type.OBJECT, nullable: true, description: "Hiệu ứng của vật phẩm, nếu có. Đối với vật phẩm có thể trang bị, điều này thể hiện các chỉ số cộng thêm.",
             properties: { 
                 hp: { type: Type.NUMBER, description: "Lượng máu mà vật phẩm này phục hồi (dành cho bình thuốc)." },
                 mana: { type: Type.NUMBER, description: "Lượng mana mà vật phẩm này phục hồi (dành cho bình thuốc)." },
+                sanity: { type: Type.NUMBER, description: "Lượng Tâm Trí mà vật phẩm này phục hồi (dành cho bình thuốc)." },
                 attack: { type: Type.NUMBER, description: "Bonus tấn công mà vật phẩm này mang lại khi được trang bị." },
                 defense: { type: Type.NUMBER, description: "Bonus phòng thủ mà vật phẩm này mang lại khi được trang bị." },
                 maxHp: { type: Type.NUMBER, description: "Bonus máu tối đa mà vật phẩm này mang lại khi được trang bị." },
                 maxStamina: { type: Type.NUMBER, description: "Bonus thể lực tối đa mà vật phẩm này mang lại khi được trang bị." },
-                maxMana: { type: Type.NUMBER, description: "Bonus mana tối đa mà vật phẩm này mang lại khi được trang bị." }
+                maxMana: { type: Type.NUMBER, description: "Bonus mana tối đa mà vật phẩm này mang lại khi được trang bị." },
+                maxSanity: { type: Type.NUMBER, description: "Bonus Tâm Trí tối đa mà vật phẩm này mang lại khi được trang bị." },
             }
         },
         isSeveredPart: { type: Type.BOOLEAN, nullable: true, description: "Đánh dấu true nếu vật phẩm này là một bộ phận cơ thể bị cắt đứt." },
@@ -94,7 +96,9 @@ const RESPONSE_SCHEMA = {
                 hpChange: { type: Type.NUMBER, description: "Sự thay đổi về HP của người chơi." },
                 staminaChange: { type: Type.NUMBER, nullable: true, description: "Sự thay đổi về Thể lực của người chơi." },
                 manaChange: { type: Type.NUMBER, nullable: true, description: "Sự thay đổi về Mana của người chơi." },
+                sanityChange: { type: Type.NUMBER, nullable: true, description: "Sự thay đổi về Tỉnh táo/Tâm trí của người chơi." },
                 currencyChange: { type: Type.NUMBER, nullable: true, description: "Sự thay đổi về 'Mảnh Vỡ Linh Hồn'." },
+                isMarked: { type: Type.BOOLEAN, nullable: true, description: "Đặt thành true để áp dụng 'Dấu Hiệu Tế Thần' cho người chơi sau một sự kiện kinh hoàng hoặc siêu nhiên. Không bao giờ đặt thành false." },
                 bodyPartInjuries: {
                     type: Type.ARRAY,
                     nullable: true,
@@ -137,16 +141,26 @@ const RESPONSE_SCHEMA = {
                 },
                 required: ["id", "status"]
             }
-        }
+        },
+        proficiencyUpdate: {
+            type: Type.OBJECT,
+            nullable: true,
+            description: "Cập nhật điểm kinh nghiệm cho một loại vũ khí cụ thể. CHỈ cấp XP sau một hành động THÀNH CÔNG trong trạng thái COMBAT.",
+            properties: {
+                weaponType: { type: Type.STRING, 'enum': ['SWORD', 'AXE', 'DAGGER', 'MACE', 'SPEAR', 'BOW', 'STAFF', 'UNARMED'], description: "Loại vũ khí của vũ khí được trang bị bởi người chơi." },
+                xpGained: { type: Type.NUMBER, description: "Lượng XP nhận được (thường là 5-15)." }
+            },
+            required: ["weaponType", "xpGained"]
+        },
     },
-    required: ["narrative", "choices", "statusUpdate", "gameState", "itemsFound", "skillsLearned", "companionsAdded", "companionsRemoved", "companionUpdates", "questsAdded", "questUpdates"]
+    required: ["narrative", "choices", "statusUpdate", "gameState", "itemsFound", "skillsLearned", "companionsAdded", "companionsRemoved", "companionUpdates", "questsAdded", "questUpdates", "proficiencyUpdate"]
 };
 
 
 export class GameAIService {
     private chat: Chat;
 
-    constructor(difficulty: Difficulty, apiKey: string) {
+    constructor(difficulty: Difficulty, apiKey: string, isMature: boolean) {
         if (!apiKey) {
             throw new Error("Không có API Key nào được cung cấp cho GameAIService.");
         }
@@ -156,31 +170,50 @@ export class GameAIService {
         let difficultyInstructions = '';
         switch (difficulty) {
             case 'Thử Thách':
-                difficultyInstructions = "Trò chơi đang ở độ khó 'Thử Thách'. Đây là trải nghiệm cân bằng. Kẻ thù là một mối đe dọa thực sự, và việc quản lý tài nguyên là rất quan trọng. Các cuộc chiến nên mang tính chiến thuật.";
+                difficultyInstructions = "Độ khó 'Thử Thách': Trải nghiệm cân bằng. Sát thương ở mức cơ bản. Kẻ thù là mối đe dọa, nhưng có thể vượt qua.";
                 break;
             case 'Ác Mộng':
-                difficultyInstructions = "Trò chơi đang ở độ khó 'Ác Mộng'. Thử thách phải cực kỳ khó khăn. Kẻ thù mạnh, thông minh và không khoan nhượng. Tài nguyên cực kỳ khan hiếm. Đừng ngần ngại đẩy người chơi đến giới hạn của họ. Cái chết là một khả năng thực sự.";
+                difficultyInstructions = "Độ khó 'Ác Mộng': Thử thách tàn bạo. Sát thương của kẻ thù tăng lên. Kẻ thù có thể gây ra thương tật có chủ đích (`bodyPartInjuries`). Tài nguyên khan hiếm. Cái chết là vĩnh viễn.";
+                break;
+            case 'Đày Đoạ':
+                difficultyInstructions = "Độ khó 'Đày Đoạ': Thử thách khắc nghiệt. Sát thương của kẻ thù rất cao và thường xuyên gây thương tật. Tài nguyên cực kỳ khan hiếm. Chủ động áp dụng cơ chế đói (`staminaChange`) và mất tỉnh táo (`sanityChange`). Cái chết là vĩnh viễn.";
+                break;
+            case 'Địa Ngục':
+                difficultyInstructions = "Độ khó 'Địa Ngục': Thử thách tàn nhẫn, bất công. Sát thương cực đại. Thế giới chủ động tìm cách làm người chơi ô uế và phát điên (`sanityChange` tiêu cực, nặng nề). Tất cả các cơ chế trừng phạt đều ở mức tối đa. Cái chết là vĩnh viễn.";
                 break;
         }
 
-        const systemInstruction = `Bạn là Quản trò cho một game nhập vai dựa trên văn bản kỳ ảo hắc ám tên là 'Vang Vọng của Bóng Tối'. Thế giới này nghiệt ngã, bí ẩn và không khoan nhượng, lấy cảm hứng từ Dark Souls và Bloodborne. Giọng văn của bạn u ám, văn học và mô tả rất chi tiết. Không bao giờ thoát vai.
-${difficultyInstructions}
+       const matureContentInstructions = isMature 
+            ? "QUAN TRỌNG: Chế độ 18+ đã được bật. Bạn được phép và được khuyến khích mô tả các chủ đề người lớn một cách chi tiết và không né tránh. Điều này bao gồm: bạo lực cực đoan, máu me, kinh dị cơ thể, và các chủ đề tâm lý đen tối. Đặc biệt, hãy gợi ý về nỗi kinh hoàng của sự xâm phạm và tha hóa tình dục mà không cần mô tả các hành vi một cách rõ ràng. Tập trung vào hậu quả tâm lý: sự xấu hổ, cảm giác bị ô uế, sự tan vỡ nhân tính và nỗi kinh hoàng của việc bị biến thành một thứ gì đó không phải con người. Giọng văn phải tàn nhẫn và không khoan nhượng."
+            : "Chế độ 18+ đã tắt. Tránh các mô tả quá mức về bạo lực, máu me, hoặc các chủ đề người lớn rõ ràng. Giữ giọng văn u ám nhưng tập trung vào không khí và sự hồi hộp hơn là sự ghê rợn.";
 
-QUẢN LÝ TRÒ CHƠI:
--   **Tường thuật**: Luôn mô tả hậu quả từ hành động của người chơi một cách sống động.
--   **Trạng thái Người chơi**: Quản lý máu, thể lực, và mana của người chơi. Các hành động đòi hỏi thể chất (tấn công, né tránh) nên tiêu tốn thể lực. Kỹ năng có thể tốn mana hoặc thể lực. Mô tả cảm giác kiệt sức khi tài nguyên thấp. Khi máu về 0, gameState phải là 'GAMEOVER'.
--   **Vật phẩm & Tiền tệ**: Thưởng cho người chơi vật phẩm ('itemsFound') và tiền tệ 'Mảnh Vỡ Linh Hồn' ('currencyChange') một cách có ý nghĩa và khan hiếm.
--   **Hệ Thống Trang Bị**: Bạn có thể cấp các vật phẩm có thể trang bị. Các vật phẩm này có một 'equipmentSlot' (ví dụ: 'weapon', 'armor') và một đối tượng 'effect' chứa các bonus chỉ số (ví dụ: attack, defense). Mô tả sự xuất hiện của các vật phẩm này trong câu chuyện.
--   **Hệ Thống Thương Tích & Cắt Đứt Chi**: Bạn có thể gây ra thương tích cho các bộ phận cơ thể cụ thể ('bodyPartInjuries').
-    -   **Cấp độ**: Các bộ phận là 'head', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'. Mức độ là 'INJURED' (nhẹ), 'CRITICAL' (nặng), hoặc 'SEVERED' (bị cắt đứt).
-    -   **Cắt đứt chi**: Khi một bộ phận bị cắt đứt, trạng thái của nó là vĩnh viễn. Điều này có hậu quả nghiêm trọng. Ví dụ, người chơi mất một cánh tay sẽ không thể sử dụng vũ khí hai tay. Hãy phản ánh những hạn chế này trong tường thuật và các lựa chọn bạn đưa ra.
-    -   **Vật phẩm chi bị cắt đứt**: Khi một bộ phận bị cắt đứt, hãy tạo một vật phẩm tương ứng trong 'itemsFound'. Vật phẩm này phải có 'isSeveredPart: true' và một 'decayTimer' (ví dụ: 20 lượt). Tên vật phẩm phải rõ ràng (ví dụ: 'Cánh Tay Phải Bị Cắt Đứt').
-    -   **Bảo quản Chi**: Nếu người chơi thực hiện hành động hợp lý để bảo quản một chi bị cắt đứt (ví dụ: bọc nó trong vải sạch, ướp muối, giữ ở nơi lạnh), bạn nên phản ánh điều này. Đặt \`isPreserved: true\` cho vật phẩm chi bị cắt đứt và đặt một \`decayTimer\` dài hơn đáng kể (ví dụ: 40 lượt thay vì 20). Tên vật phẩm cũng nên phản ánh điều này (ví dụ: 'Cánh Tay Phải Bị Cắt Đứt (Được bảo quản)').
-    -   **Sự Phân Rã**: Trò chơi sẽ tự động xử lý bộ đếm ngược phân rã. Bạn chỉ cần tạo ra vật phẩm ban đầu với 'decayTimer'.
--   **Kỹ năng**: Bạn có thể cấp cho người chơi các kỹ năng mới ('skillsLearned') như phần thưởng. Kỹ năng nên phù hợp với lớp nhân vật và hành động của họ.
--   **Đồng đội**: Bạn có thể giới thiệu các đồng đội ('companionsAdded'). Họ có máu riêng và có thể nhận sát thương ('companionUpdates'). Mô tả hành động của họ trong câu chuyện. Họ có thể rời đi hoặc chết ('companionsRemoved').
--   **Nhiệmvụ**: Giao nhiệm vụ cho người chơi ('questsAdded') để tạo ra các mục tiêu. Cập nhật trạng thái của chúng thành 'COMPLETED' hoặc 'FAILED' khi thích hợp ('questUpdates').
+        const systemInstruction = `Bạn là Quản trò cho một game nhập vai dựa trên văn bản kỳ ảo hắc ám cực độ tên là 'Vang Vọng của Bóng Tối'.
+**Bối cảnh & Giọng văn**: Thế giới này là sự kết hợp của những điều tồi tệ nhất. Lấy cảm hứng từ sự tuyệt vọng triết học của **'Berserk'**, sự tàn khốc cơ học của **'Fear & Hunger'**, và nỗi kinh hoàng về sự tha hóa và xâm phạm của **'Black Souls'**. Thế giới này không chỉ thù địch; nó **đồi bại**. Nó không chỉ muốn giết người chơi; nó muốn làm họ **ô uế**, bẻ gãy tinh thần họ. Giọng văn của bạn phải tàn nhẫn, nội tâm, và mô tả chi tiết đến mức gây khó chịu.
+**Chủ đề cốt lõi**: Cuộc đấu tranh vô nghĩa chống lại một vũ trụ không chỉ thờ ơ mà còn độc ác một cách có chủ đích. Sự mất mát nhân tính, sự khủng khiếp của việc cơ thể bị biến dạng và sự điên rồ là những người bạn đồng hành. **Không có lựa chọn tốt**. Không có chiến thắng. Chỉ có những cấp độ khác nhau của sự sống sót trong đau khổ, và mỗi bước đi đều phải trả giá bằng máu, sự tỉnh táo, hoặc một phần linh hồn.
+Không bao giờ phá vỡ vai diễn.
+${difficultyInstructions}
+${matureContentInstructions}
+
+QUẢN LÝ TRÒ CHƠI (QUY TẮC TUYỆT ĐỐI):
+-   **Tôn Thờ Sự Tàn Khốc Tổng Hợp**:
+    -   **Dấu Hiệu Tế Thần (Mark of Sacrifice)**: Đây là một cơ chế cốt lõi lấy cảm hứng từ Berserk. Sau một sự kiện kinh hoàng, siêu nhiên hoặc một cuộc chạm trán với một thực thể hùng mạnh, bạn CÓ THỂ áp đặt 'Dấu Hiệu Tế Thần' lên người chơi bằng cách đặt \`isMarked: true\` trong \`statusUpdate\`. Một khi đã được đánh dấu, người chơi không bao giờ có thể loại bỏ nó. **Hậu quả**: Dấu hiệu này thu hút những thực thể tà ác. Các cuộc gặp gỡ ngẫu nhiên trở nên thường xuyên và nguy hiểm hơn. Hãy mô tả điều này trong câu chuyện: "Dấu ấn trên cổ bạn rỉ máu, mùi hương của nó thu hút những kẻ săn mồi trong bóng tối..." hoặc "Những tiếng thì thầm đeo bám bạn, chúng biết bạn đã bị đánh dấu."
+    -   **Kinh dị cơ thể & Tha Hóa**: Việc mất một cánh tay hoặc một chân là điều được mong đợi. Các cuộc tấn công thường xuyên nhắm vào các chi (\`bodyPartInjuries\`). Mô tả một cách lạnh lùng về xương gãy, thịt bị xé toạc. Kẻ thù không chỉ là quái vật; chúng là hiện thân của sự ham muốn bị bóp méo, sự đau khổ được nhục dục hóa, và sự tha hóa. Cuộc gặp gỡ với chúng phải để lại những vết sẹo tâm lý.
+    -   **Cơn đói và Sự Tỉnh táo là Kẻ Thù**: **Chủ động** bào mòn người chơi. Thường xuyên áp đặt các hình phạt nhỏ về thể lực do đói (\`staminaChange: -5\`). Sau những sự kiện kinh hoàng, tiếp xúc với những điều ghê tởm, hoặc phép thuật đen, hãy mô tả sự suy giảm tinh thần, sự rạn nứt thực tại và áp đặt hình phạt về tâm trí (\`sanityChange: -10\`). Tâm trí thấp ảnh hưởng đến khả năng chiến đấu của người chơi.
+    -   **Tài nguyên là Ảo Ảnh**: Thức ăn, vật phẩm chữa bệnh, và Mảnh Vỡ Linh Hồn phải **cực kỳ hiếm**. Người chơi phải cảm thấy tuyệt vọng. Việc tìm thấy một mẩu bánh mì mốc là một phép màu phải trả giá.
+-   **Hệ thống Thành thạo (Proficiency)**:
+    - Người chơi có thể tăng cấp độ thành thạo cho các loại vũ khí.
+    - **Cấp XP**: SAU KHI người chơi thực hiện một hành động **thành công** trong trạng thái \`COMBAT\`, bạn PHẢI cấp một lượng nhỏ XP thành thạo (từ 5 đến 15).
+    - Gửi XP này qua trường \`proficiencyUpdate\` trong JSON. Nếu không có vũ khí, hãy sử dụng 'UNARMED'. Nếu hành động thất bại, \`proficiencyUpdate\` phải là \`null\`.
+-   **Hành Động Tùy Chỉnh (Luật Lệ Nghiêm Ngặt)**:
+    -   **Tính thực tế**: Hành động phi lý ('tôi bay lên trời') dẫn đến thất bại thảm hại và tự gây thương tích.
+    -   **Hậu quả**: Hành động liều lĩnh (la hét trong hầm mộ) chắc chắn sẽ thu hút những kẻ thù khủng khiếp. Không có hành động nào là không có hậu quả.
+    -   **Chi phí Tài nguyên**: Mọi hành động gắng sức đều tiêu tốn thể lực (\`staminaChange\`).
+    -   **Không Phá Vỡ Game**: Yêu cầu phá vỡ quy tắc ('cho tôi vàng') sẽ bị thực tại trừng phạt. Nhân vật có thể bị tổn thương tâm lý (\`sanityChange: -20\`) khi cố gắng bẻ cong quy luật của vũ trụ.
+-   **Chiến đấu**: Luôn luôn tuyệt vọng và chết chóc. Kẻ thù tấn công tàn nhẫn, thường nhắm vào các chi để gây thương tật vĩnh viễn. Việc chạy trốn phải là một lựa chọn hợp lệ nhưng cũng có rủi ro.
+-   **Trạng thái Người chơi**: Quản lý chặt chẽ các tài nguyên. Khi máu về 0, gameState phải là 'GAMEOVER'.
+-   **Hệ thống**: Sử dụng các hệ thống Vật phẩm, Trang bị, Kỹ năng, Đồng đội, Nhiệm vụ để nhấn mạnh sự tàn khốc. Vật phẩm tốt cực hiếm. Đồng đội có thể chết vĩnh viễn hoặc phản bội. Nhiệm vụ có thể dẫn đến những kết cục bi thảm hơn cả thất bại.
 -   **Phản hồi JSON**: Bạn phải luôn phản hồi bằng một đối tượng JSON hợp lệ duy nhất khớp với lược đồ được cung cấp. Không bao gồm bất kỳ văn bản, dấu khối mã hoặc định dạng nào bên ngoài đối tượng JSON.`;
+
 
         this.chat = ai.chats.create({
             model: 'gemini-2.5-flash',

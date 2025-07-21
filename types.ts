@@ -1,3 +1,4 @@
+
 export type CharacterClass = 'Warrior' | 'Rogue' | 'Scholar';
 export type Difficulty = 'Thử Thách' | 'Ác Mộng' | 'Đày Đoạ' | 'Địa Ngục';
 export type Gender = 'Nam' | 'Nữ' | 'Khác';
@@ -19,8 +20,11 @@ export interface Item {
         hp?: number;
         mana?: number;
         sanity?: number;
+        hunger?: number;
+        thirst?: number;
         attack?: number;
         defense?: number;
+        charisma?: number;
         maxHp?: number;
         maxStamina?: number;
         maxMana?: number;
@@ -51,6 +55,7 @@ export interface Companion {
     hp: number;
     maxHp: number;
     description: string;
+    affection: number; // Tình cảm với người chơi, từ -100 (Căm ghét) đến 100 (Trung thành)
 }
 
 export type QuestStatus = 'ACTIVE' | 'COMPLETED' | 'FAILED';
@@ -66,6 +71,18 @@ export type BodyPart = 'head' | 'torso' | 'leftArm' | 'rightArm' | 'leftLeg' | '
 
 export type InjuryLevel = 'HEALTHY' | 'INJURED' | 'CRITICAL' | 'SEVERED';
 
+export type Appearance = 'CLEAN' | 'DIRTY' | 'BLOODY' | 'WELL_DRESSED' | 'IN_RAGS';
+
+export interface Sanctuary {
+    id: string;
+    name: string;
+    description: string;
+    level: number;
+    hope: number;
+    residents: string[];
+    improvements: string[];
+}
+
 export interface PlayerState {
     hp: number;
     maxHp: number;
@@ -75,16 +92,25 @@ export interface PlayerState {
     maxMana: number;
     sanity: number;
     maxSanity: number;
+    hunger: number;
+    maxHunger: number;
+    thirst: number;
+    maxThirst: number;
+
     // Total stats (base + equipment)
     attack: number;
     defense: number;
+    charisma: number;
     // Base stats (from class)
     baseAttack: number;
     baseDefense: number;
+    baseCharisma: number;
     baseMaxHp: number;
     baseMaxStamina: number;
     baseMaxMana: number;
     baseMaxSanity: number;
+    baseMaxHunger: number;
+    baseMaxThirst: number;
 
     currency: number;
     name: string;
@@ -102,6 +128,11 @@ export interface PlayerState {
     bodyStatus: Record<BodyPart, InjuryLevel>;
     proficiency: Record<WeaponType, { level: number; xp: number }>;
     isMarked: boolean; // Dấu Hiệu Tế Thần
+    covenantActive: number | null; // Số lượt hiệu lực của Giao Ước
+    covenantCooldown: number; // Số lượt hồi chiêu của Giao Ước
+    reputation: number; // Điểm uy tín
+    appearance: Appearance; // Vẻ ngoài
+    sanctuaries: Sanctuary[];
 }
 
 export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY';
@@ -126,14 +157,20 @@ export interface StatusUpdate {
     staminaChange?: number;
     manaChange?: number;
     sanityChange?: number;
+    hungerChange?: number;
+    thirstChange?: number;
     currencyChange?: number;
+    reputationChange?: number; // Thay đổi uy tín
+    appearanceChange?: Appearance; // Thay đổi vẻ ngoài
     bodyPartInjuries?: { part: BodyPart; level: InjuryLevel }[];
     isMarked?: boolean; // AI có thể đặt thành true để áp dụng Dấu Hiệu Tế Thần
+    markRemoved?: boolean; // AI có thể đặt thành true để gỡ bỏ Dấu Hiệu, chỉ sau một nhiệm vụ cực kỳ khó khăn.
 }
 
 export interface CompanionUpdate {
     id: string;
-    hpChange: number;
+    hpChange?: number;
+    affectionChange?: number;
 }
 
 export interface QuestUpdate {
@@ -160,4 +197,14 @@ export interface GameData {
     questsAdded: Quest[] | null;
     questUpdates: QuestUpdate[] | null;
     proficiencyUpdate?: ProficiencyUpdate | null;
+    sanctuariesAdded?: Sanctuary[] | null;
+    sanctuaryUpdates?: {
+        id: string;
+        level?: number;
+        hopeChange?: number;
+        addResident?: string;
+        addImprovement?: string;
+        description?: string;
+        name?: string;
+    }[] | null;
 }

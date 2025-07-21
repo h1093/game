@@ -1,9 +1,13 @@
+
 import React from 'react';
 import { Item, PlayerState } from '../types';
 
 // SVG Icons
 const IconPotion = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M8 2h8"/>
+        <path d="M7 2v13.5a2.5 2.5 0 0 0 2.5 2.5h5A2.5 2.5 0 0 0 17 15.5V2"/>
+    </svg>
 );
 const IconWeapon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 14.5 3 22"/> <path d="m21 3-6.5 6.5"/> <path d="m3 3 18 18"/> <path d="M18 6V3h3"/> <path d="M18 10v-1"/> <path d="m21 7-1-1"/> <path d="M19 10h-1"/> <path d="m14 5-1-1"/> <path d="M6 18H3v-3"/> <path d="M10 18h1"/> <path d="m7 21 1-1"/> <path d="M10 19v1"/> <path d="m5 14 1 1"/></svg>
@@ -51,20 +55,24 @@ const InventoryPanel: React.FC<InventoryPanelProps> = ({ playerState, onUseItem 
         ) : (
             <div className="flex flex-col gap-3">
                 {playerState.inventory.map((item) => {
-                    const isUsable = item.type === 'POTION';
+                    const isConsumable = item.effect && !item.equipmentSlot;
                     let isDisabled = false;
                     let disabledTooltip = '';
 
-                    if (isUsable) {
+                    if (isConsumable) {
                         const hpGain = item.effect?.hp || 0;
                         const manaGain = item.effect?.mana || 0;
                         const sanityGain = item.effect?.sanity || 0;
+                        const hungerGain = item.effect?.hunger || 0;
+                        const thirstGain = item.effect?.thirst || 0;
 
                         const canUse = (hpGain > 0 && playerState.hp < playerState.maxHp) ||
                                        (manaGain > 0 && playerState.mana < playerState.maxMana) ||
-                                       (sanityGain > 0 && playerState.sanity < playerState.maxSanity);
+                                       (sanityGain > 0 && playerState.sanity < playerState.maxSanity) ||
+                                       (hungerGain > 0 && playerState.hunger < playerState.maxHunger) ||
+                                       (thirstGain > 0 && playerState.thirst < playerState.maxThirst);
                         
-                        const hasAnyEffect = hpGain > 0 || manaGain > 0 || sanityGain > 0;
+                        const hasAnyEffect = hpGain > 0 || manaGain > 0 || sanityGain > 0 || hungerGain > 0 || thirstGain > 0;
 
                         if (hasAnyEffect && !canUse) {
                            isDisabled = true;
@@ -73,7 +81,7 @@ const InventoryPanel: React.FC<InventoryPanelProps> = ({ playerState, onUseItem 
                     }
 
                     const baseClass = "flex items-center w-full text-left bg-gray-700/80 text-white p-3 rounded-lg border border-gray-600 transition-all duration-200 ease-in-out";
-                    const hoverClass = isUsable ? "hover:bg-red-800 hover:border-red-600 transform hover:scale-[1.02]" : "cursor-default";
+                    const hoverClass = isConsumable && !isDisabled ? "hover:bg-red-800 hover:border-red-600 transform hover:scale-[1.02]" : "cursor-default";
                     const disabledClass = isDisabled ? "bg-gray-600 !transform-none opacity-50 cursor-not-allowed" : "";
 
                     return (
@@ -97,7 +105,7 @@ const InventoryPanel: React.FC<InventoryPanelProps> = ({ playerState, onUseItem 
                             </div>
 
                             <div className="ml-4 flex-shrink-0">
-                                {isUsable && (
+                                {isConsumable && (
                                     <button onClick={() => !isDisabled && onUseItem(item)} disabled={isDisabled} className="text-sm font-bold text-green-400 flex items-center gap-1 disabled:text-gray-400 disabled:cursor-not-allowed hover:text-green-300">
                                         Dùng <IconPlayCircle />
                                     </button>

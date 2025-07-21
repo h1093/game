@@ -1,3 +1,4 @@
+
 import { PlayerState, CharacterClass, Difficulty, Gender, WeaponType } from './types';
 
 export const SAVE_KEY = "darkFantasyRPGSaveData";
@@ -17,14 +18,22 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
     maxMana: 0,
     sanity: 0,
     maxSanity: 0,
+    hunger: 0,
+    maxHunger: 0,
+    thirst: 0,
+    maxThirst: 0,
     attack: 0,
     defense: 0,
+    charisma: 0,
     baseAttack: 0,
     baseDefense: 0,
+    baseCharisma: 0,
     baseMaxHp: 0,
     baseMaxStamina: 0,
     baseMaxMana: 0,
     baseMaxSanity: 0,
+    baseMaxHunger: 0,
+    baseMaxThirst: 0,
     currency: 0,
     name: '',
     bio: '',
@@ -57,30 +66,35 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
         UNARMED: { level: 1, xp: 0 },
     },
     isMarked: false,
+    covenantActive: null,
+    covenantCooldown: 0,
+    reputation: 0,
+    appearance: 'DIRTY',
+    sanctuaries: [],
 };
 
 export const CLASSES: Record<CharacterClass, { 
     description: string; 
-    stats: { baseMaxHp: number; baseMaxStamina: number; baseMaxMana: number; baseMaxSanity: number; baseAttack: number; baseDefense: number; };
+    stats: { baseMaxHp: number; baseMaxStamina: number; baseMaxMana: number; baseMaxSanity: number; baseMaxHunger: number; baseMaxThirst: number; baseAttack: number; baseDefense: number; baseCharisma: number; };
     strengths: string[];
     weaknesses: string[];
 }> = {
   Warrior: {
     description: "Được huấn luyện trong nghệ thuật đổ máu, bạn là một bức tường thành chống lại bóng tối, được định hình bởi sức mạnh và sự kiên cường.",
-    stats: { baseMaxHp: 120, baseMaxStamina: 100, baseMaxMana: 20, baseMaxSanity: 80, baseAttack: 15, baseDefense: 10 },
+    stats: { baseMaxHp: 120, baseMaxStamina: 100, baseMaxMana: 20, baseMaxSanity: 80, baseMaxHunger: 100, baseMaxThirst: 100, baseAttack: 15, baseDefense: 10, baseCharisma: 5 },
     strengths: ["Sức khỏe và phòng thủ cao.", "Hiệu quả trong cận chiến.", "Chịu đựng được nhiều sát thương."],
-    weaknesses: ["Kém linh hoạt.", "Hầu như không có khả năng phép thuật.", "Dễ bị tấn công bởi các đòn đánh tầm xa."]
+    weaknesses: ["Kém linh hoạt.", "Hầu như không có khả năng phép thuật.", "Sức hấp dẫn thấp."]
   },
   Rogue: {
     description: "Một sinh vật của bóng tối và xảo quyệt, bạn phát triển mạnh ở nơi người khác chùn bước, tấn công từ bóng tối với độ chính xác chết người.",
-    stats: { baseMaxHp: 100, baseMaxStamina: 120, baseMaxMana: 40, baseMaxSanity: 70, baseAttack: 12, baseDefense: 8 },
+    stats: { baseMaxHp: 100, baseMaxStamina: 120, baseMaxMana: 40, baseMaxSanity: 70, baseMaxHunger: 100, baseMaxThirst: 100, baseAttack: 12, baseDefense: 8, baseCharisma: 10 },
     strengths: ["Nhanh nhẹn và né tránh tốt.", "Gây sát thương chí mạng cao.", "Giỏi trong việc tấn công bất ngờ và sử dụng mẹo."],
     weaknesses: ["Sức khỏe thấp, dễ bị hạ gục.", "Phụ thuộc vào việc tấn công trước.", "Gặp khó khăn trong các trận chiến kéo dài."]
   },
   Scholar: {
     description: "Kiến thức là vũ khí và là lá chắn của bạn. Bạn sử dụng những truyền thuyết bị lãng quên để làm sáng tỏ những bí ẩn nghiệt ngã của thế giới.",
-    stats: { baseMaxHp: 80, baseMaxStamina: 80, baseMaxMana: 100, baseMaxSanity: 100, baseAttack: 8, baseDefense: 5 },
-    strengths: ["Sử dụng phép thuật mạnh mẽ.", "Có khả năng kiểm soát và hỗ trợ.", "Có thể khai thác điểm yếu của kẻ thù."],
+    stats: { baseMaxHp: 80, baseMaxStamina: 80, baseMaxMana: 100, baseMaxSanity: 100, baseMaxHunger: 100, baseMaxThirst: 100, baseAttack: 8, baseDefense: 5, baseCharisma: 15 },
+    strengths: ["Sử dụng phép thuật mạnh mẽ.", "Sức hấp dẫn cao, có tài thuyết phục.", "Có thể khai thác điểm yếu của kẻ thù."],
     weaknesses: ["Cực kỳ yếu trong cận chiến.", "Sức khỏe và phòng thủ thấp nhất.", "Phụ thuộc nhiều vào mana."]
   }
 };

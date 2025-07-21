@@ -39,7 +39,7 @@ const IconX = ({ size, ...props }: React.SVGProps<SVGSVGElement> & { size: numbe
 );
 
 interface CharacterCreationScreenProps {
-    onCharacterCreate: (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => void;
+    onCharacterCreate: (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; race: string; }) => void;
 }
 
 const RANDOM_BIOS = [
@@ -50,6 +50,25 @@ const RANDOM_BIOS = [
     "Một thợ săn từ những vùng đất hoang dã băng giá ở phương bắc, tôi bị thu hút đến vùng đất bị nguyền rủa này bởi những lời thì thầm về một con mồi huyền thoại.",
     "Được nuôi dưỡng trong một giáo phái tôn thờ sự im lặng, tôi đã chạy trốn để tìm tiếng nói của riêng mình, chỉ để thấy thế giới bên ngoài còn tăm tối hơn cả ngôi đền tôi đã bỏ lại."
 ];
+
+const SelectionGrid = ({ title, icon, items, selectedItem, onSelect, errorCondition, setError }: { title: string, icon: React.ReactElement, items: string[], selectedItem: string | null, onSelect: (item: any) => void, errorCondition: boolean, setError: (error: string) => void }) => (
+     <div>
+        <h2 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${errorCondition && !selectedItem ? 'text-red-500 animate-pulse' : ''}`}>{icon} {title}</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {items.map((item) => (
+                <button
+                    key={item}
+                    type="button"
+                    onClick={() => { onSelect(item); setError(''); }}
+                    className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedItem === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600 hover:border-red-600 hover:bg-gray-700'}`}
+                >
+                   {item}
+                </button>
+            ))}
+        </div>
+    </div>
+);
+
 
 const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCharacterCreate }) => {
     const [name, setName] = useState('');
@@ -83,31 +102,13 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
             setError('Bạn phải chọn một độ khó cho cuộc phiêu lưu.');
             return;
         }
-        onCharacterCreate({ name, bio, characterClass: selectedClass, difficulty: selectedDifficulty, gender: selectedGender, personality: selectedPersonality, goal: selectedGoal });
+        onCharacterCreate({ name, bio, characterClass: selectedClass, difficulty: selectedDifficulty, gender: selectedGender, personality: selectedPersonality, goal: selectedGoal, race: 'Human' });
     };
 
     const handleRandomBio = () => {
         const randomIndex = Math.floor(Math.random() * RANDOM_BIOS.length);
         setBio(RANDOM_BIOS[randomIndex]);
     };
-
-    const SelectionGrid = ({ title, icon, items, selectedItem, onSelect, errorCondition }: { title: string, icon: React.ReactElement, items: string[], selectedItem: string, onSelect: (item: any) => void, errorCondition: boolean }) => (
-         <div>
-            <h2 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${errorCondition && !selectedItem ? 'text-red-500 animate-pulse' : ''}`}>{icon} {title}</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {items.map((item) => (
-                    <button
-                        key={item}
-                        type="button"
-                        onClick={() => { onSelect(item); setError(''); }}
-                        className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedItem === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600 hover:border-red-600 hover:bg-gray-700'}`}
-                    >
-                       {item}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
 
     return (
         <div className="bg-gray-900 text-gray-300 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-red-900/50 selection:text-white">
@@ -188,8 +189,8 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                         <SelectionGrid title="Chọn Giới Tính" icon={<IconUsers />} items={Object.values(GENDERS)} selectedItem={selectedGender!} onSelect={setSelectedGender} errorCondition={!!error} />
-                         <SelectionGrid title="Chọn Tính Cách" icon={<IconSmile />} items={PERSONALITIES} selectedItem={selectedPersonality} onSelect={setSelectedPersonality} errorCondition={!!error} />
+                         <SelectionGrid title="Chọn Giới Tính" icon={<IconUsers />} items={Object.values(GENDERS)} selectedItem={selectedGender} onSelect={setSelectedGender} errorCondition={!!error} setError={setError} />
+                         <SelectionGrid title="Chọn Tính Cách" icon={<IconSmile />} items={PERSONALITIES} selectedItem={selectedPersonality} onSelect={setSelectedPersonality} errorCondition={!!error} setError={setError} />
                     </div>
 
                     <div>

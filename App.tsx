@@ -1,5 +1,6 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GameState, PlayerState, GameData, Choice, CharacterClass, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender } from './types';
+import { GameState, PlayerState, GameData, Choice, CharacterClass, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary } from './types';
 import { INITIAL_PLAYER_STATE, GAME_TITLE, CLASSES, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY } from './constants';
 import { GameAIService } from './services/geminiService';
 import NarrativePanel from './components/NarrativePanel';
@@ -10,9 +11,9 @@ import StartScreen from './components/StartScreen';
 import CharacterCreationScreen from './components/CharacterCreationScreen';
 import InventoryScreen from './components/InventoryScreen';
 import EquipmentScreen from './components/EquipmentScreen';
-import CompanionsPanel from './components/CompanionsPanel';
-import QuestsPanel from './components/QuestsPanel';
+import InfoTabsPanel from './components/InfoTabsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
+import CovenantButton from './components/CovenantButton';
 
 // SVG Icons
 const IconInventory = (props: React.SVGProps<SVGSVGElement>) => (
@@ -147,16 +148,20 @@ const App: React.FC = () => {
         const newState = { ...currentState };
         let newAttack = currentState.baseAttack;
         let newDefense = currentState.baseDefense;
+        let newCharisma = currentState.baseCharisma;
         let newMaxHp = currentState.baseMaxHp;
         let newMaxStamina = currentState.baseMaxStamina;
         let newMaxMana = currentState.baseMaxMana;
         let newMaxSanity = currentState.baseMaxSanity;
+        let newMaxHunger = currentState.baseMaxHunger;
+        let newMaxThirst = currentState.baseMaxThirst;
 
         // Equipment stats
         Object.values(currentState.equipment).forEach(item => {
             if (item && item.effect) {
                 newAttack += item.effect.attack || 0;
                 newDefense += item.effect.defense || 0;
+                newCharisma += item.effect.charisma || 0;
                 newMaxHp += item.effect.maxHp || 0;
                 newMaxStamina += item.effect.maxStamina || 0;
                 newMaxMana += item.effect.maxMana || 0;
@@ -185,23 +190,34 @@ const App: React.FC = () => {
             newAttack -= 2;  // total -2 from base
         }
 
-        // Mark of Sacrifice bonus
+        // Covenant bonus
+        if (currentState.covenantActive && currentState.covenantActive > 0) {
+            newAttack += 5; // Significant but temporary boost
+            newDefense += 5;
+        }
+        
+        // Mark of Sacrifice bonus (now a smaller, persistent effect)
         if (currentState.isMarked) {
-            newAttack += 2; // A small, desperate boost from the mark
+            newAttack += 2;
         }
 
         newState.attack = Math.max(0, newAttack);
         newState.defense = Math.max(0, newDefense);
+        newState.charisma = Math.max(0, newCharisma);
         newState.maxHp = newMaxHp;
         newState.maxStamina = newMaxStamina;
         newState.maxMana = newMaxMana;
         newState.maxSanity = newMaxSanity;
+        newState.maxHunger = newMaxHunger;
+        newState.maxThirst = newMaxThirst;
         
         // Clamp current stats to new max values
         newState.hp = Math.min(newState.hp, newState.maxHp);
         newState.stamina = Math.min(newState.stamina, newState.maxStamina);
         newState.mana = Math.min(newState.mana, newState.maxMana);
         newState.sanity = Math.min(newState.sanity, newState.maxSanity);
+        newState.hunger = Math.min(newState.hunger, newState.maxHunger);
+        newState.thirst = Math.min(newState.thirst, newState.maxThirst);
 
         return newState;
     }, []);
@@ -239,21 +255,23 @@ const App: React.FC = () => {
                 
                 if (savedData.playerState && savedData.gameState && savedData.gameState.difficulty) {
                     
-                    const loadedPlayerState = savedData.playerState;
+                    let loadedPlayerState = savedData.playerState;
                     // Ensure fields exist for older saves
-                    if (!loadedPlayerState.equipment) loadedPlayerState.equipment = {};
-                    if (savedData.gameState.turn === undefined) savedData.gameState.turn = 0;
-                    if (!loadedPlayerState.proficiency) {
-                         loadedPlayerState.proficiency = INITIAL_PLAYER_STATE.proficiency;
-                    }
-                    if (loadedPlayerState.sanity === undefined) {
+                    loadedPlayerState = {...INITIAL_PLAYER_STATE, ...loadedPlayerState};
+                    loadedPlayerState.sanctuaries = loadedPlayerState.sanctuaries || []; // Handle old saves
+                    
+                    if (loadedPlayerState.charisma === undefined) {
                         const classData = CLASSES[loadedPlayerState.class!];
-                        loadedPlayerState.baseMaxSanity = classData.stats.baseMaxSanity;
-                        loadedPlayerState.maxSanity = classData.stats.baseMaxSanity;
-                        loadedPlayerState.sanity = classData.stats.baseMaxSanity;
+                        loadedPlayerState.baseCharisma = classData.stats.baseCharisma;
+                        loadedPlayerState.charisma = classData.stats.baseCharisma;
                     }
-                    if (loadedPlayerState.isMarked === undefined) {
-                        loadedPlayerState.isMarked = false;
+                    
+                    // Add default affection for old saves
+                    if (loadedPlayerState.companions && loadedPlayerState.companions.length > 0) {
+                        loadedPlayerState.companions = loadedPlayerState.companions.map((c: Companion) => ({
+                            ...c,
+                            affection: c.affection === undefined ? 0 : c.affection
+                        }));
                     }
 
 
@@ -337,14 +355,30 @@ const App: React.FC = () => {
         setPlayerState(prevPlayerState => {
             let newPlayerState = { ...prevPlayerState };
 
+            // Game Tick for Cooldowns
+            let newCovenantActive = newPlayerState.covenantActive;
+            if (newCovenantActive && newCovenantActive > 0) {
+                newCovenantActive -= 1;
+            }
+            let newCovenantCooldown = newPlayerState.covenantCooldown;
+            if (newCovenantCooldown > 0) {
+                newCovenantCooldown -= 1;
+            }
+            newPlayerState = { ...newPlayerState, covenantActive: newCovenantActive, covenantCooldown: newCovenantCooldown };
+
             if (gameData.statusUpdate) {
                 const newHp = Math.max(0, newPlayerState.hp + (gameData.statusUpdate.hpChange || 0));
                 const newStamina = Math.max(0, Math.min(newPlayerState.maxStamina, newPlayerState.stamina + (gameData.statusUpdate.staminaChange || 0)));
                 const newMana = Math.max(0, Math.min(newPlayerState.maxMana, newPlayerState.mana + (gameData.statusUpdate.manaChange || 0)));
                 const newSanity = Math.max(0, Math.min(newPlayerState.maxSanity, newPlayerState.sanity + (gameData.statusUpdate.sanityChange || 0)));
+                const newHunger = Math.max(0, Math.min(newPlayerState.maxHunger, newPlayerState.hunger + (gameData.statusUpdate.hungerChange || 0)));
+                const newThirst = Math.max(0, Math.min(newPlayerState.maxThirst, newPlayerState.thirst + (gameData.statusUpdate.thirstChange || 0)));
                 const newCurrency = newPlayerState.currency + (gameData.statusUpdate.currencyChange || 0);
+                const newReputation = newPlayerState.reputation + (gameData.statusUpdate.reputationChange || 0);
+                const newAppearance = gameData.statusUpdate.appearanceChange || newPlayerState.appearance;
 
-                newPlayerState = { ...newPlayerState, hp: newHp, stamina: newStamina, mana: newMana, sanity: newSanity, currency: newCurrency };
+
+                newPlayerState = { ...newPlayerState, hp: newHp, stamina: newStamina, mana: newMana, sanity: newSanity, hunger: newHunger, thirst: newThirst, currency: newCurrency, reputation: newReputation, appearance: newAppearance };
                 
                 if (gameData.statusUpdate.isMarked && !newPlayerState.isMarked) {
                     newPlayerState.isMarked = true;
@@ -353,6 +387,15 @@ const App: React.FC = () => {
                         addLogEntry(markMessage);
                         setNotification(markMessage);
                     }, 50); // Delay slightly to not collide with other notifications
+                }
+                
+                if (gameData.statusUpdate.markRemoved) {
+                    newPlayerState.isMarked = false;
+                    setTimeout(() => {
+                        const unmarkMessage = "Gánh nặng đã được gỡ bỏ. Vết sẹo vẫn còn, nhưng lời nguyền đã tan biến. Lần đầu tiên sau một thời gian dài, bạn cảm thấy sự im lặng trong tâm hồn mình.";
+                        addLogEntry(unmarkMessage);
+                        setNotification(unmarkMessage);
+                    }, 50);
                 }
 
                 if (gameData.statusUpdate.bodyPartInjuries && gameData.statusUpdate.bodyPartInjuries.length > 0) {
@@ -434,13 +477,20 @@ const App: React.FC = () => {
                 newPlayerState = { ...newPlayerState, companions: newPlayerState.companions.filter(c => !gameData.companionsRemoved?.includes(c.id)) };
             }
             if (gameData.companionUpdates) {
-                 newPlayerState = {
+                newPlayerState = {
                     ...newPlayerState,
                     companions: newPlayerState.companions.map(c => {
                         const update = gameData.companionUpdates?.find(u => u.id === c.id);
                         if (update) {
-                            const newCompanionHp = Math.max(0, Math.min(c.maxHp, c.hp + (update.hpChange || 0)));
-                            return { ...c, hp: newCompanionHp };
+                            const updatedCompanion = { ...c };
+                            if (typeof update.hpChange === 'number') {
+                                updatedCompanion.hp = Math.max(0, Math.min(c.maxHp, c.hp + update.hpChange));
+                            }
+                            if (typeof update.affectionChange === 'number') {
+                                const currentAffection = updatedCompanion.affection ?? 0;
+                                updatedCompanion.affection = Math.max(-100, Math.min(100, currentAffection + update.affectionChange));
+                            }
+                            return updatedCompanion;
                         }
                         return c;
                     })
@@ -456,6 +506,29 @@ const App: React.FC = () => {
                     quests: newPlayerState.quests.map(q => {
                         const update = gameData.questUpdates?.find(u => u.id === q.id);
                         return update ? { ...q, status: update.status } : q;
+                    })
+                };
+            }
+            
+            if (gameData.sanctuariesAdded) {
+                newPlayerState = { ...newPlayerState, sanctuaries: [...newPlayerState.sanctuaries, ...gameData.sanctuariesAdded] };
+            }
+            if (gameData.sanctuaryUpdates) {
+                newPlayerState = {
+                    ...newPlayerState,
+                    sanctuaries: newPlayerState.sanctuaries.map(s => {
+                        const update = gameData.sanctuaryUpdates?.find(u => u.id === s.id);
+                        if (update) {
+                            let updatedSanctuary = { ...s };
+                            if (update.level !== undefined) updatedSanctuary.level = update.level;
+                            if (update.hopeChange !== undefined) updatedSanctuary.hope = Math.max(0, Math.min(100, s.hope + update.hopeChange));
+                            if (update.addResident) updatedSanctuary.residents = [...s.residents, update.addResident];
+                            if (update.addImprovement) updatedSanctuary.improvements = [...s.improvements, update.addImprovement];
+                            if (update.description) updatedSanctuary.description = update.description;
+                            if (update.name) updatedSanctuary.name = update.name;
+                            return updatedSanctuary;
+                        }
+                        return s;
                     })
                 };
             }
@@ -494,6 +567,13 @@ const App: React.FC = () => {
 
         if (profLevelUpMessage) {
             notificationParts.push(profLevelUpMessage);
+        }
+
+        const reputationChange = gameData.statusUpdate?.reputationChange || 0;
+        if (reputationChange > 0) {
+            notificationParts.push(`Uy tín của bạn đã tăng lên.`);
+        } else if (reputationChange < 0) {
+            notificationParts.push(`Uy tín của bạn đã giảm xuống.`);
         }
 
         const currencyChange = gameData.statusUpdate?.currencyChange || 0;
@@ -682,48 +762,70 @@ const App: React.FC = () => {
     }, [isLoading, addLogEntry, processGameData, setNotification, setIsLoading, setPlayerState, handleApiError]);
 
     const handleUseItem = useCallback((itemToUse: Item) => {
-        if (itemToUse.type === 'POTION') {
-            setPlayerState(prev => {
-                const hpGain = itemToUse.effect?.hp || 0;
-                const manaGain = itemToUse.effect?.mana || 0;
-                const sanityGain = itemToUse.effect?.sanity || 0;
-
-                const canUse = (hpGain > 0 && prev.hp < prev.maxHp) || 
-                               (manaGain > 0 && prev.mana < prev.maxMana) ||
-                               (sanityGain > 0 && prev.sanity < prev.maxSanity);
-
-                if (!canUse) {
-                    setNotification("Bạn không cần dùng nó bây giờ.");
-                    return prev;
-                }
-                
-                const healedHp = Math.min(prev.maxHp, prev.hp + hpGain);
-                const restoredMana = Math.min(prev.maxMana, prev.mana + manaGain);
-                const restoredSanity = Math.min(prev.maxSanity, prev.sanity + sanityGain);
-                
-                const hpRestored = healedHp - prev.hp;
-                const manaRestored = restoredMana - prev.mana;
-                const sanityRestored = restoredSanity - prev.sanity;
-                
-                const itemIndex = prev.inventory.findIndex(item => item.id === itemToUse.id);
-                if (itemIndex > -1) {
-                    const newInventory = [...prev.inventory];
-                    newInventory.splice(itemIndex, 1);
-                    
-                    let msgParts: string[] = [];
-                    if (hpRestored > 0) msgParts.push(`hồi phục ${hpRestored} máu`);
-                    if (manaRestored > 0) msgParts.push(`hồi phục ${manaRestored} mana`);
-                    if (sanityRestored > 0) msgParts.push(`khôi phục ${sanityRestored} Tâm Trí`);
-                    
-                    const msg = `Bạn đã dùng một ${itemToUse.name} và ${msgParts.join(' và ')}.`;
-                    setNotification(msg);
-                    addLogEntry(msg);
-                    
-                    return recalculateStats({...prev, hp: healedHp, mana: restoredMana, sanity: restoredSanity, inventory: newInventory });
-                }
-                return prev;
-            });
+        // Only handle consumable items with effects (not equippable gear)
+        if (!itemToUse.effect || itemToUse.equipmentSlot) {
+            setNotification("Bạn không thể dùng vật phẩm này theo cách đó.");
+            return;
         }
+
+        setPlayerState(prev => {
+            const hpGain = itemToUse.effect?.hp || 0;
+            const manaGain = itemToUse.effect?.mana || 0;
+            const sanityGain = itemToUse.effect?.sanity || 0;
+            const hungerGain = itemToUse.effect?.hunger || 0;
+            const thirstGain = itemToUse.effect?.thirst || 0;
+
+            const canUse = (hpGain > 0 && prev.hp < prev.maxHp) || 
+                           (manaGain > 0 && prev.mana < prev.maxMana) ||
+                           (sanityGain > 0 && prev.sanity < prev.maxSanity) ||
+                           (hungerGain > 0 && prev.hunger < prev.maxHunger) ||
+                           (thirstGain > 0 && prev.thirst < prev.maxThirst);
+
+            if (!canUse) {
+                setNotification("Bạn không cần dùng nó bây giờ.");
+                return prev;
+            }
+            
+            const healedHp = Math.min(prev.maxHp, prev.hp + hpGain);
+            const restoredMana = Math.min(prev.maxMana, prev.mana + manaGain);
+            const restoredSanity = Math.min(prev.maxSanity, prev.sanity + sanityGain);
+            const restoredHunger = Math.min(prev.maxHunger, prev.hunger + hungerGain);
+            const restoredThirst = Math.min(prev.maxThirst, prev.thirst + thirstGain);
+            
+            const hpRestored = healedHp - prev.hp;
+            const manaRestored = restoredMana - prev.mana;
+            const sanityRestored = restoredSanity - prev.sanity;
+            const hungerRestored = restoredHunger - prev.hunger;
+            const thirstRestored = restoredThirst - prev.thirst;
+            
+            const itemIndex = prev.inventory.findIndex(item => item.id === itemToUse.id);
+            if (itemIndex > -1) {
+                const newInventory = [...prev.inventory];
+                newInventory.splice(itemIndex, 1);
+                
+                let msgParts: string[] = [];
+                if (hpRestored > 0) msgParts.push(`hồi phục ${hpRestored} máu`);
+                if (manaRestored > 0) msgParts.push(`hồi phục ${manaRestored} mana`);
+                if (sanityRestored > 0) msgParts.push(`khôi phục ${sanityRestored} Tâm Trí`);
+                if (hungerRestored > 0) msgParts.push(`làm dịu cơn đói đi ${hungerRestored} điểm`);
+                if (thirstRestored > 0) msgParts.push(`giải tỏa cơn khát đi ${thirstRestored} điểm`);
+                
+                const msg = `Bạn đã dùng một ${itemToUse.name}${msgParts.length > 0 ? ' và ' + msgParts.join(' và ') : ''}.`;
+                setNotification(msg);
+                addLogEntry(msg);
+                
+                return recalculateStats({
+                    ...prev, 
+                    hp: healedHp, 
+                    mana: restoredMana, 
+                    sanity: restoredSanity, 
+                    hunger: restoredHunger,
+                    thirst: restoredThirst,
+                    inventory: newInventory 
+                });
+            }
+            return prev;
+        });
     }, [addLogEntry, setPlayerState, setNotification, recalculateStats]);
 
     const handleEquipItem = useCallback((itemToEquip: Item) => {
@@ -800,7 +902,7 @@ const App: React.FC = () => {
         setIsNewGameConfirmOpen(false);
     }, [setIsNewGameConfirmOpen]);
 
-    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => {
+    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; race: string }) => {
         const { name, bio, characterClass, difficulty, gender, personality, goal } = details;
         
         const classData = CLASSES[characterClass];
@@ -817,6 +919,9 @@ const App: React.FC = () => {
             stamina: classData.stats.baseMaxStamina,
             mana: classData.stats.baseMaxMana,
             sanity: classData.stats.baseMaxSanity,
+            hunger: classData.stats.baseMaxHunger,
+            thirst: classData.stats.baseMaxThirst,
+            charisma: classData.stats.baseCharisma,
         };
         
         setPlayerState(recalculateStats(baseState));
@@ -895,6 +1000,35 @@ const App: React.FC = () => {
 
         startStory();
     }, [gameState.phase, gameState.turn, gameState.difficulty, isLoading, activeApiKey, isMatureContent, apiSource, addLogEntry, processGameData, handleApiError]);
+
+    const handleActivateCovenant = useCallback(() => {
+        if (!playerState.isMarked || playerState.covenantCooldown > 0) return;
+
+        const sanityCost = 25;
+        const permanentSanityCost = 5;
+        const reputationCost = 10;
+        const cooldownDuration = 10;
+        const activeDuration = 3;
+
+        setPlayerState(prev => {
+            const newSanity = Math.max(0, prev.sanity - sanityCost);
+            const newMaxSanity = Math.max(0, prev.maxSanity - permanentSanityCost);
+            const newReputation = prev.reputation - reputationCost;
+            
+            const msg = `Bạn đã chấp nhận Giao Ước. Sức mạnh hắc ám trào dâng, nhưng một phần linh hồn của bạn đã vĩnh viễn bị bào mòn.`;
+            setNotification(msg);
+            addLogEntry(msg);
+
+            return recalculateStats({
+                ...prev,
+                sanity: newSanity,
+                maxSanity: newMaxSanity,
+                reputation: newReputation,
+                covenantActive: activeDuration,
+                covenantCooldown: cooldownDuration,
+            });
+        });
+    }, [playerState.isMarked, playerState.covenantCooldown, addLogEntry, setNotification, recalculateStats]);
 
 
     const restartGame = useCallback(() => {
@@ -1039,31 +1173,46 @@ const App: React.FC = () => {
                      />
                 </div>
                 
-                <div className="lg:col-span-1 flex flex-col gap-6">
-                    <PlayerStatsPanel playerState={playerState} />
-                    <CompanionsPanel companions={playerState.companions} />
-                    <QuestsPanel quests={playerState.quests} />
-                    <div className="bg-gray-800/50 p-4 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm">
-                         <div className="grid grid-cols-3 gap-3">
-                            <button
-                                onClick={() => setIsInventoryOpen(true)}
-                                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-red-800 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                            >
-                                <IconInventory /> Hành Trang
-                            </button>
-                             <button
-                                onClick={() => setIsEquipmentOpen(true)}
-                                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-yellow-800 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
-                            >
-                                <IconEquipment /> Trang Bị
-                            </button>
-                             <button
-                                onClick={saveGame}
-                                disabled={isLoading}
-                                className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-blue-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                            >
-                                <IconSave /> Lưu
-                            </button>
+                <div className="lg:col-span-1">
+                     <div className="bg-gray-800/50 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm flex flex-col h-full">
+                        <div className="flex-grow p-4 space-y-6 overflow-y-auto">
+                            <PlayerStatsPanel playerState={playerState} />
+                            <InfoTabsPanel 
+                                companions={playerState.companions} 
+                                quests={playerState.quests} 
+                                sanctuaries={playerState.sanctuaries} 
+                            />
+                        </div>
+                         <div className="flex-shrink-0 p-4 border-t border-gray-700/50 space-y-3">
+                             {playerState.isMarked && (
+                                <CovenantButton
+                                    onActivate={handleActivateCovenant}
+                                    cooldown={playerState.covenantCooldown}
+                                    isActive={!!playerState.covenantActive && playerState.covenantActive > 0}
+                                    isLoading={isLoading}
+                                />
+                             )}
+                             <div className="grid grid-cols-3 gap-3">
+                                <button
+                                    onClick={() => setIsInventoryOpen(true)}
+                                    className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-red-800 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                                >
+                                    <IconInventory /> Hành Trang
+                                </button>
+                                 <button
+                                    onClick={() => setIsEquipmentOpen(true)}
+                                    className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-yellow-800 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
+                                >
+                                    <IconEquipment /> Trang Bị
+                                </button>
+                                 <button
+                                    onClick={saveGame}
+                                    disabled={isLoading}
+                                    className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-blue-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                                >
+                                    <IconSave /> Lưu
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -141,7 +141,8 @@ const RESPONSE_SCHEMA = {
                 properties: {
                     text: { type: Type.STRING, description: "Văn bản hiển thị trên nút lựa chọn cho người chơi. Ví dụ: 'Tấn công vào đầu của Ghoul'." },
                     prompt: { type: Type.STRING, description: "Lời nhắc để gửi lại cho AI nếu lựa chọn này được chọn." },
-                    staminaCost: { type: Type.NUMBER, nullable: true, description: "Chi phí thể lực để thực hiện hành động này." }
+                    staminaCost: { type: Type.NUMBER, nullable: true, description: "Chi phí thể lực để thực hiện hành động này." },
+                    hitChance: { type: Type.NUMBER, nullable: true, description: "Cơ hội trúng đòn của hành động này, là một số nguyên từ 0 đến 100. Chỉ áp dụng cho các hành động tấn công trong chiến đấu. Đối với các hành động không phải tấn công (như sử dụng vật phẩm, phòng thủ, bỏ chạy) hoặc các lựa chọn ngoài chiến đấu, hãy đặt giá trị này là null." }
                 },
                 required: ["text", "prompt"]
             },
@@ -243,16 +244,16 @@ export class GameAIService {
         let difficultyInstructions = '';
         switch (difficulty) {
             case 'Thử Thách':
-                difficultyInstructions = "Độ khó 'Thử Thách': Trải nghiệm cân bằng. Sát thương ở mức cơ bản. Kẻ thù là mối đe dọa, nhưng có thể vượt qua.";
+                difficultyInstructions = "Độ khó 'Thử Thách': Trải nghiệm cân bằng. Sát thương và tỉ lệ trúng của người chơi ở mức cơ bản. Kẻ thù là mối đe dọa, nhưng có thể vượt qua.";
                 break;
             case 'Ác Mộng':
-                difficultyInstructions = "Độ khó 'Ác Mộng': Thử thách tàn bạo. Sát thương của kẻ thù tăng lên. Kẻ thù có thể gây ra thương tật có chủ đích (`bodyPartInjuries`). Tài nguyên khan hiếm. Cái chết là vĩnh viễn.";
+                difficultyInstructions = "Độ khó 'Ác Mộng': Thử thách tàn bạo. Sát thương của kẻ thù tăng lên. Giảm nhẹ tỉ lệ trúng của người chơi (khoảng -10% so với cơ bản). Kẻ thù có thể gây ra thương tật có chủ đích (`bodyPartInjuries`). Tài nguyên khan hiếm. Cái chết là vĩnh viễn.";
                 break;
             case 'Đày Đoạ':
-                difficultyInstructions = "Độ khó 'Đày Đoạ': Thử thách khắc nghiệt. Sát thương của kẻ thù rất cao và thường xuyên gây thương tật. Tài nguyên cực kỳ khan hiếm. Chủ động áp dụng cơ chế đói, khát (`hungerChange`, `thirstChange`) và mất tỉnh táo (`sanityChange`). Cái chết là vĩnh viễn.";
+                difficultyInstructions = "Độ khó 'Đày Đoạ': Thử thách khắc nghiệt. Sát thương của kẻ thù rất cao. Giảm đáng kể tỉ lệ trúng của người chơi (khoảng -15% so với cơ bản). Thường xuyên gây thương tật. Tài nguyên cực kỳ khan hiếm. Chủ động áp dụng cơ chế đói, khát (`hungerChange`, `thirstChange`) và mất tỉnh táo (`sanityChange`). Cái chết là vĩnh viễn.";
                 break;
             case 'Địa Ngục':
-                difficultyInstructions = "Độ khó 'Địa Ngục': Thử thách tàn nhẫn, bất công. Sát thương cực đại. Thế giới chủ động tìm cách làm người chơi ô uế và phát điên (`sanityChange` tiêu cực, nặng nề). Tất cả các cơ chế trừng phạt, bao gồm đói và khát, đều ở mức tối đa. Cái chết là vĩnh viễn.";
+                difficultyInstructions = "Độ khó 'Địa Ngục': Thử thách tàn nhẫn, bất công. Sát thương cực đại. Giảm mạnh tỉ lệ trúng của người chơi (khoảng -20% so với cơ bản). Thế giới chủ động tìm cách làm người chơi ô uế và phát điên (`sanityChange` tiêu cực, nặng nề). Tất cả các cơ chế trừng phạt, bao gồm đói và khát, đều ở mức tối đa. Cái chết là vĩnh viễn.";
                 break;
         }
 
@@ -269,6 +270,12 @@ Không bao giờ phá vỡ vai diễn.
 Khi \`gameState\` trở thành 'COMBAT', toàn bộ động lực thay đổi. Mục tiêu của bạn là tạo ra một trải nghiệm chiến đấu theo lượt tàn bạo, chiến thuật và mô tả chi tiết.
 - **Bắt đầu Chiến đấu**: Khi chiến đấu bắt đầu, bạn PHẢI điền vào mảng \`enemies\`. Mỗi kẻ thù PHẢI có \`id\`, \`name\`, \`description\`, và một đối tượng \`bodyParts\`. Mỗi bộ phận cơ thể ('head', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg') phải có \`hp\` và trạng thái 'HEALTHY'. Gán HP hợp lý (ví dụ: tay/chân 20-30HP, thân 50-80HP, đầu 30-40HP).
 - **Nhắm mục tiêu là Chìa khóa**: Vai trò chính của bạn là tạo ra các \`choices\` cho phép người chơi nhắm vào các bộ phận cơ thể cụ thể của kẻ thù. Văn bản lựa chọn phải rõ ràng, ví dụ: "Tấn công vào đầu của Ghoul", "Chém rìu vào cánh tay cầm kiếm của Bộ Xương". Lời nhắc phải phản ánh hành động này.
+- **Tỉ Lệ Trúng (Hit Chance)**: Đối với mỗi lựa chọn tấn công trong chiến đấu, bạn PHẢI gán một \`hitChance\` (0-100). Tỉ lệ này nên được tính toán dựa trên:
+    - **Mục tiêu**: Tấn công các bộ phận nhỏ hơn hoặc nhanh nhẹn hơn (đầu) sẽ có tỉ lệ trúng thấp hơn so với các bộ phận lớn (thân).
+    - **Tình trạng kẻ thù**: Một kẻ thù bị què chân sẽ dễ bị tấn công hơn (tăng tỉ lệ trúng).
+    - **Hành động của người chơi**: Các đòn tấn công liều lĩnh có thể có tỉ lệ trúng thấp hơn nhưng sát thương cao hơn (bạn sẽ mô tả điều này trong tường thuật), trong khi các đòn tấn công cẩn thận có tỉ lệ trúng cao hơn.
+    - **Độ khó**: Áp dụng các hình phạt tỉ lệ trúng dựa trên độ khó của trò chơi như đã được chỉ định.
+    - **Quy tắc chung**: Tỉ lệ trúng cơ bản (ở độ khó 'Thử Thách') nên dao động trong khoảng 60-85%. Các đòn tấn công vào đầu nên có tỉ lệ thấp hơn (ví dụ: 40-60%). Các hành động không phải tấn công (ví dụ: sử dụng vật phẩm, bỏ chạy) nên có \`hitChance\` là null.
 - **Cắt xẻo**: Khi HP của một bộ phận cơ thể về 0, bạn PHẢI cập nhật trạng thái của nó thành 'DESTROYED' trong phản hồi tiếp theo. Điều này là vĩnh viễn trong trận chiến.
 - **Mô tả sống động**: Tường thuật kết quả của các cuộc tấn công trong \`combatLog\`. Hãy đồ họa và chi tiết. "Lưỡi kiếm rỉ sét của bạn cào vào chân xương của nó một cách vô ích." hoặc "Một tiếng 'rắc' ướt át vang lên khi bạn chặt đứt cánh tay của Ghoul. Nó hét lên một tiếng đau đớn và lùi lại, máu đen tuôn ra từ vết thương."
 - **AI Kẻ thù**: Hành động của kẻ thù phụ thuộc vào trạng thái của nó.
@@ -302,6 +309,26 @@ Khi \`gameState\` trở thành 'COMBAT', toàn bộ động lực thay đổi. M
     - Những thương nhân xảo quyệt.
     - Thậm chí cả những cái xác với những chi tiết đáng chú ý (ví dụ: "Xác của một hiệp sĩ, tay vẫn nắm chặt một lá thư").
 - **Tích hợp vào tường thuật**: Sự hiện diện của NPC PHẢI được đề cập trong \`narrative\`. Cho người chơi biết họ không đơn độc. Hành động tùy chỉnh là cách người chơi tương tác với họ.
+
+*** NGHỈ NGƠI, CẮM TRẠI, VÀ SỰ NGUY HIỂM ***
+- **RỦI RO KHI NGHỈ NGƠI**: Các hành động như 'Nghỉ ngơi', 'Dựng trại', 'Ngủ', hoặc 'Chờ đợi' **KHÔNG** phải lúc nào cũng an toàn. Đây là một cơ hội để tạo ra sự căng thẳng và thể hiện sự nguy hiểm của thế giới.
+- **Quy trình khi người chơi nghỉ ngơi**:
+    1.  **Đánh giá rủi ro**: Trước tiên, hãy quyết định xem người chơi có bị phục kích hay không.
+    2.  **Yếu tố ảnh hưởng**:
+        *   **Địa điểm**: Nghỉ ngơi ở một khu vực không an toàn, nguy hiểm (hầm ngục, rừng bị nguyền rủa, đầm lầy) có nguy cơ bị phục kích cao. Nghỉ ngơi trong một Thánh địa (\`Sanctuary\`) hoặc một nơi được che giấu kỹ càng thì an toàn.
+        *   **Tình trạng người chơi**: Nếu người chơi bị đánh dấu (\`isMarked: true\`), nguy cơ bị phục kích là **CỰC KỲ CAO**, vì họ đang bị săn lùng.
+        *   **Độ khó**: Các độ khó cao hơn làm tăng nguy cơ bị phục kích.
+- **Nếu bị phục kích**:
+    *   **KHÔNG** cung cấp bất kỳ lợi ích nghỉ ngơi nào (hồi HP, Stamina, v.v.). Người chơi đã bị gián đoạn.
+    *   Chuyển ngay \`gameState\` thành 'COMBAT'.
+    *   Tạo ra (các) kẻ thù phù hợp trong mảng \`enemies\`.
+    *   \`narrative\` phải mô tả người chơi bị đánh thức đột ngột bởi một cuộc tấn công.
+    *   Cung cấp các lựa chọn chiến đấu ngay lập tức.
+- **Nếu nghỉ ngơi an toàn**:
+    *   Mô tả một khoảng thời gian nghỉ ngơi căng thẳng nhưng cuối cùng không bị gián đoạn.
+    *   Cung cấp \`statusUpdate\` với việc phục hồi HP, Stamina, v.v., như mong đợi.
+    *   \`narrative\` nên mô tả thế giới sau khi nghỉ ngơi và cung cấp các \`choices\` khám phá mới.
+    *   \`gameState\` vẫn là 'EXPLORING'.
 
 *** CÁC CƠ CHẾ KHÁC ***
 - **Thế Giới Động**: Nếu lời nhắc bắt đầu bằng '(Sự kiện Thế Giới Động xảy ra)', hãy mô tả một sự kiện quan trọng đang diễn ra ở nơi khác trên thế giới TRƯỚC KHI mô tả kết quả hành động của người chơi.

@@ -145,6 +145,7 @@ export interface Choice {
     text: string;
     prompt: string;
     staminaCost?: number;
+    hitChance?: number;
 }
 
 export interface Enemy {

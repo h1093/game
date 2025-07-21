@@ -1,20 +1,29 @@
-
 import React from 'react';
 import { Choice, PlayerState, GamePhase, Enemy } from '../types';
 import EnemyFigure from './EnemyFigure';
 
 // SVG Icons
 const IconChevronsRight = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <polyline points="13 17 18 12 13 7"></polyline>
         <polyline points="6 17 11 12 6 7"></polyline>
     </svg>
 );
 
 const IconSend = ({ size, ...props }: React.SVGProps<SVGSVGElement> & { size: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <line x1="22" y1="2" x2="11" y2="13"></line>
         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    </svg>
+);
+
+const IconCrosshair = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="22" y1="12" x2="18" y2="12"></line>
+        <line x1="6" y1="12" x2="2" y2="12"></line>
+        <line x1="12" y1="6" x2="12" y2="2"></line>
+        <line x1="12" y1="22" x2="12" y2="18"></line>
     </svg>
 );
 
@@ -52,6 +61,7 @@ const CombatPanel: React.FC<CombatPanelProps> = ({
         const staminaCost = choice.staminaCost || 0;
         const hasEnoughStamina = playerState.stamina >= staminaCost;
         const isDisabled = isLoading || !hasEnoughStamina;
+        const hitChance = choice.hitChance;
 
         return (
             <button
@@ -59,10 +69,15 @@ const CombatPanel: React.FC<CombatPanelProps> = ({
                 onClick={() => onAction(choice)}
                 disabled={isDisabled}
                 className="flex items-center justify-between w-full text-left bg-gray-700 hover:bg-red-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-md transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:transform-none"
-                title={!hasEnoughStamina ? `Cần ${staminaCost} thể lực` : ''}
+                title={!hasEnoughStamina ? `Cần ${staminaCost} thể lực` : (hitChance !== null && hitChance !== undefined ? `Cơ hội trúng: ${hitChance}%` : '')}
             >
                 <span className="flex-grow pr-2">{choice.text}</span>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-4 flex-shrink-0">
+                    {hitChance !== undefined && hitChance !== null && (
+                        <span className="font-mono text-sm font-bold text-cyan-300 flex items-center gap-1">
+                            <IconCrosshair className="w-4 h-4" /> {hitChance}%
+                        </span>
+                    )}
                     {staminaCost > 0 && (
                         <span className={`font-mono text-sm font-bold ${hasEnoughStamina ? 'text-blue-300' : 'text-red-400'}`}>
                             {staminaCost} STA
@@ -108,11 +123,13 @@ const CombatPanel: React.FC<CombatPanelProps> = ({
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 {enemies.map(enemy => (
-                    <div key={enemy.id} className="bg-gray-900/40 p-3 rounded-lg border border-gray-700">
-                        <h3 className="text-lg font-bold text-red-300">{enemy.name}</h3>
-                        <p className="text-sm text-gray-400 italic mb-2">{enemy.description}</p>
+                    <div key={enemy.id} className="bg-gray-900/40 p-3 rounded-lg border border-gray-700 flex flex-col justify-between">
+                        <div>
+                            <h3 className="text-lg font-bold text-red-300">{enemy.name}</h3>
+                            <p className="text-sm text-gray-400 italic mb-2">{enemy.description}</p>
+                            {enemy.currentAction && <p className="text-xs text-yellow-300 mt-2 animate-pulse">Hành động: {enemy.currentAction}</p>}
+                        </div>
                         <EnemyFigure bodyParts={enemy.bodyParts} />
-                        {enemy.currentAction && <p className="text-xs text-yellow-300 mt-2 animate-pulse">Hành động: {enemy.currentAction}</p>}
                     </div>
                 ))}
             </div>

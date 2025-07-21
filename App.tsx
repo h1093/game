@@ -409,7 +409,7 @@ const App: React.FC = () => {
             gameState.narrative &&
             gameState.narrative !== lastNarrativeForArt.current &&
             !isLoading && // Wait for main game logic to finish loading
-            (gameState.phase === 'EXPLORING' || gameState.phase === 'COMBAT')
+            (gameState.phase === 'EXPLORING')
         ) {
             lastNarrativeForArt.current = gameState.narrative;
             handleGenerateArt(gameState.narrative);
@@ -1366,7 +1366,7 @@ const App: React.FC = () => {
             
             <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 flex flex-col gap-6">
-                    <ArtPanel imageUrl={artImageUrl} isLoading={isArtLoading} />
+                    {gameState.phase !== 'COMBAT' && <ArtPanel imageUrl={artImageUrl} isLoading={isArtLoading} />}
                     <NarrativePanel 
                         narrative={gameState.narrative} 
                         combatLog={gameState.combatLog} 

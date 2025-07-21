@@ -1,5 +1,7 @@
 
+
 import React, { useState } from 'react';
+import { GoogleGenAI } from "@google/genai";
 import { CharacterClass, Difficulty, Gender } from '../types';
 import { CLASSES, DIFFICULTIES, GENDERS, PERSONALITIES, GOALS } from '../constants';
 
@@ -15,6 +17,9 @@ const IconShield = (props: React.SVGProps<SVGSVGElement>) => (
 );
 const IconShuffle = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="16 14 21 14 21 19"></polyline><line x1="4" y1="10" x2="15" y2="21"></line><line x1="10" y1="4" x2="21" y2="15"></line></svg>
+);
+const IconSpinner = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="animate-spin" {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
 );
 const IconBarChart2 = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
@@ -39,38 +44,11 @@ const IconX = ({ size, ...props }: React.SVGProps<SVGSVGElement> & { size: numbe
 );
 
 interface CharacterCreationScreenProps {
-    onCharacterCreate: (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; race: string; }) => void;
+    onCharacterCreate: (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => void;
+    activeApiKey: string | undefined;
 }
 
-const RANDOM_BIOS = [
-    "Là người sống sót cuối cùng của một đoàn lính đánh thuê bị phản bội, tôi chỉ tìm kiếm sự trả thù và một cái chết xứng đáng.",
-    "Bị trục xuất khỏi một học viện vì nghiên cứu những phép thuật bị cấm, tôi lang thang trên đất này để tìm kiếm sức mạnh thực sự, bất kể giá nào.",
-    "Một tên trộm không có ký ức về quá khứ của mình, tôi chỉ biết đến sự sống còn trong bóng tối, với những ngón tay nhanh nhẹn và một trái tim trống rỗng.",
-    "Từng là một quý tộc bị tước đoạt danh hiệu và bị bỏ mặc cho đến chết. Bây giờ, tôi sống chỉ để giành lại những gì đã mất.",
-    "Một thợ săn từ những vùng đất hoang dã băng giá ở phương bắc, tôi bị thu hút đến vùng đất bị nguyền rủa này bởi những lời thì thầm về một con mồi huyền thoại.",
-    "Được nuôi dưỡng trong một giáo phái tôn thờ sự im lặng, tôi đã chạy trốn để tìm tiếng nói của riêng mình, chỉ để thấy thế giới bên ngoài còn tăm tối hơn cả ngôi đền tôi đã bỏ lại."
-];
-
-const SelectionGrid = ({ title, icon, items, selectedItem, onSelect, errorCondition, setError }: { title: string, icon: React.ReactElement, items: string[], selectedItem: string | null, onSelect: (item: any) => void, errorCondition: boolean, setError: (error: string) => void }) => (
-     <div>
-        <h2 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${errorCondition && !selectedItem ? 'text-red-500 animate-pulse' : ''}`}>{icon} {title}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {items.map((item) => (
-                <button
-                    key={item}
-                    type="button"
-                    onClick={() => { onSelect(item); setError(''); }}
-                    className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedItem === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600 hover:border-red-600 hover:bg-gray-700'}`}
-                >
-                   {item}
-                </button>
-            ))}
-        </div>
-    </div>
-);
-
-
-const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCharacterCreate }) => {
+const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCharacterCreate, activeApiKey }) => {
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
     const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
@@ -79,6 +57,7 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
     const [selectedGoal, setSelectedGoal] = useState<string>('');
     const [error, setError] = useState('');
+    const [isBioLoading, setIsBioLoading] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,13 +81,62 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
             setError('Bạn phải chọn một độ khó cho cuộc phiêu lưu.');
             return;
         }
-        onCharacterCreate({ name, bio, characterClass: selectedClass, difficulty: selectedDifficulty, gender: selectedGender, personality: selectedPersonality, goal: selectedGoal, race: 'Human' });
+        onCharacterCreate({ name, bio, characterClass: selectedClass, difficulty: selectedDifficulty, gender: selectedGender, personality: selectedPersonality, goal: selectedGoal });
     };
 
-    const handleRandomBio = () => {
-        const randomIndex = Math.floor(Math.random() * RANDOM_BIOS.length);
-        setBio(RANDOM_BIOS[randomIndex]);
+    const handleRandomBio = async () => {
+        if (!selectedClass || !selectedPersonality) {
+            setError('Vui lòng chọn Lớp nhân vật và Tính cách trước khi tạo tiểu sử ngẫu nhiên.');
+            return;
+        }
+        if (!activeApiKey) {
+            setError('API Key không hoạt động. Vui lòng cấu hình trong menu chính.');
+            return;
+        }
+
+        setIsBioLoading(true);
+        setError('');
+        setBio('');
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: activeApiKey });
+            const prompt = `Bạn là một người viết truyện cho một game nhập vai kỳ ảo hắc ám.
+Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí (khoảng 2-3 câu) cho một nhân vật.
+- **Lớp nhân vật**: ${selectedClass}
+- **Tính cách**: ${selectedPersonality}
+- **Yêu cầu**: Tiểu sử phải phản ánh cả lớp nhân vật và tính cách trong một thế giới tàn khốc, tuyệt vọng. Giọng văn phải u ám, nghiêm túc và gợi mở. Không dùng ngôi thứ nhất (không dùng "tôi", "tôi đã"). Chỉ trả lời bằng nội dung tiểu sử, không có lời dẫn hay các câu như "Đây là tiểu sử cho bạn:".`;
+            
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            setBio(response.text.trim());
+        } catch (error) {
+            console.error("Lỗi khi tạo tiểu sử:", error);
+            setError("Không thể tạo tiểu sử. Đã xảy ra lỗi với AI.");
+        } finally {
+            setIsBioLoading(false);
+        }
     };
+
+    const SelectionGrid = ({ title, icon, items, selectedItem, onSelect, errorCondition }: { title: string, icon: React.ReactElement, items: string[], selectedItem: string, onSelect: (item: any) => void, errorCondition: boolean }) => (
+         <div>
+            <h2 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${errorCondition && !selectedItem ? 'text-red-500 animate-pulse' : ''}`}>{icon} {title}</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {items.map((item) => (
+                    <button
+                        key={item}
+                        type="button"
+                        onClick={() => { onSelect(item); setError(''); }}
+                        className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedItem === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600 hover:border-red-600 hover:bg-gray-700'}`}
+                    >
+                       {item}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
 
     return (
         <div className="bg-gray-900 text-gray-300 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-red-900/50 selection:text-white">
@@ -136,19 +164,22 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
                             <button 
                                 type="button" 
                                 onClick={handleRandomBio}
-                                className="flex items-center gap-1 text-sm text-red-400 hover:text-red-300 transition-colors duration-200"
+                                disabled={isBioLoading || !selectedClass || !selectedPersonality || !activeApiKey}
+                                className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors duration-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                title={!selectedClass || !selectedPersonality ? "Chọn lớp và tính cách trước" : !activeApiKey ? "Cần API Key để sử dụng tính năng này" : "Tạo tiểu sử ngẫu nhiên bằng AI"}
                             >
-                                <IconShuffle />
-                                Ngẫu nhiên
+                                {isBioLoading ? <IconSpinner /> : <IconShuffle />}
+                                {isBioLoading ? 'Đang viết...' : 'Tạo bằng AI'}
                             </button>
                         </div>
                         <textarea
                             id="bio"
                             value={bio}
                             onChange={(e) => setBio(e.target.value)}
-                            placeholder="Một lịch sử ngắn gọn về cuộc đời bạn trước khi hoang tàn... hoặc nhấp vào nút ngẫu nhiên."
+                            placeholder={isBioLoading ? "AI đang dệt nên quá khứ của bạn..." : "Một lịch sử ngắn gọn về cuộc đời bạn trước khi hoang tàn... hoặc để AI tạo giúp."}
                             rows={3}
-                            className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                            className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition disabled:opacity-70 disabled:cursor-wait"
+                            disabled={isBioLoading}
                         />
                     </div>
                     
@@ -189,8 +220,8 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                         <SelectionGrid title="Chọn Giới Tính" icon={<IconUsers />} items={Object.values(GENDERS)} selectedItem={selectedGender} onSelect={setSelectedGender} errorCondition={!!error} setError={setError} />
-                         <SelectionGrid title="Chọn Tính Cách" icon={<IconSmile />} items={PERSONALITIES} selectedItem={selectedPersonality} onSelect={setSelectedPersonality} errorCondition={!!error} setError={setError} />
+                         <SelectionGrid title="Chọn Giới Tính" icon={<IconUsers />} items={Object.values(GENDERS)} selectedItem={selectedGender!} onSelect={setSelectedGender} errorCondition={!!error} />
+                         <SelectionGrid title="Chọn Tính Cách" icon={<IconSmile />} items={PERSONALITIES} selectedItem={selectedPersonality} onSelect={setSelectedPersonality} errorCondition={!!error} />
                     </div>
 
                     <div>

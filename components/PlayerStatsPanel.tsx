@@ -61,6 +61,14 @@ const IconMarkOfSacrifice = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+const IconHeartOff = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M12.83 3.42a1 1 0 0 0-1.66 0C6.63 8.33 3 11.23 3 14.5A5.5 5.5 0 0 0 8.5 20a5.42 5.42 0 0 0 3.5-1.42A5.42 5.42 0 0 0 15.5 20a5.5 5.5 0 0 0 5.5-5.5c0-3.27-3.63-6.17-8.17-11.08z" />
+        <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+);
+
+
 const IconMeat = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.23 4.23 18.5 8.5C19.94 9.94 21.96 11.23 22 13c.03 1.34-1.02 2.52-2.34 2.66A20.61 20.61 0 0 1 14 16c-2.4 0-4.6.4-6.5 1.18-1.3.52-2.6-1.18-1.68-2.36.94-1.12 2.4-2.4 2.4-3.82 0-1.28-1-2.5-1-3.5S5.4 4.8 7 4.1c1-.44 2.24-.52 3.27-.16.9.33 1.5 1.03 2.23 1.76.73.73 1.76 1.5 1.73 2.23Z"/><path d="m14.23 4.23.5-.5c.79-.79 2.07-.79 2.86 0 .79.79.79 2.07 0 2.86l-.5.5"/></svg>
 );
@@ -153,8 +161,13 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState }) => {
                             <IconUser /> 
                             <span>{playerState.name}</span>
                             {playerState.isMarked && (
-                                <span title="Dấu Hiệu Tế Thần: Bạn bị săn đuổi. Sức mạnh tăng lên từ sự tuyệt vọng.">
+                                <span title="Dấu Hiệu Tế Thần: Bị săn đuổi. (+1 Tấn công, -15 Tâm trí tối đa, -5 Sức hấp dẫn)">
                                     <IconMarkOfSacrifice className="w-6 h-6 text-red-500 animate-pulse" />
+                                </span>
+                            )}
+                            {playerState.hasSuccubusPact && (
+                                <span title="Giao Ước Đen Tối: Sức hấp dẫn chết người với cái giá là sự tỉnh táo. (+10 Sức hấp dẫn, -20 Tâm trí tối đa. +5 Tấn công khi tâm trí thấp. Không thể tăng Uy tín).">
+                                    <IconHeartOff className="w-6 h-6 text-fuchsia-500 animate-pulse" />
                                 </span>
                             )}
                         </h3>

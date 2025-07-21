@@ -29,14 +29,6 @@ interface InfoTabsPanelProps {
     sanctuaries: Sanctuary[];
 }
 
-const getAffectionInfo = (affection: number): { text: string; colorClass: string; } => {
-    if (affection > 75) return { text: "Cực kỳ Trung thành", colorClass: "bg-cyan-500" };
-    if (affection > 40) return { text: "Tin tưởng", colorClass: "bg-green-500" };
-    if (affection >= -40) return { text: "Trung lập", colorClass: "bg-gray-500" };
-    if (affection >= -75) return { text: "Nghi ngờ", colorClass: "bg-yellow-600" };
-    return { text: "Căm ghét", colorClass: "bg-red-700" };
-};
-
 const InfoTabsPanel: React.FC<InfoTabsPanelProps> = ({ companions, quests, sanctuaries }) => {
     const [activeTab, setActiveTab] = useState<'companions' | 'quests' | 'sanctuary'>(sanctuaries.length > 0 ? 'sanctuary' : 'companions');
     const activeQuests = quests.filter(q => q.status === 'ACTIVE');
@@ -50,6 +42,15 @@ const InfoTabsPanel: React.FC<InfoTabsPanelProps> = ({ companions, quests, sanct
             {children}
         </button>
     );
+    
+    const getAffectionDetails = (affection: number): { text: string; color: string; icon: string; } => {
+        if (affection <= -75) return { text: "Căm Ghét", color: "bg-red-800", icon: "💔" };
+        if (affection <= -25) return { text: "Không Ưa", color: "bg-orange-700", icon: "😠" };
+        if (affection < 25) return { text: "Thờ Ơ", color: "bg-gray-600", icon: "😐" };
+        if (affection < 75) return { text: "Thân Thiện", color: "bg-sky-700", icon: "😊" };
+        return { text: "Bạn Tâm Giao", color: "bg-cyan-500", icon: "💖" };
+    };
+
 
     return (
         <div>
@@ -73,34 +74,38 @@ const InfoTabsPanel: React.FC<InfoTabsPanelProps> = ({ companions, quests, sanct
                         {companions.length > 0 ? (
                             companions.map((companion) => {
                                 const hpPercentage = companion.maxHp > 0 ? Math.min(100, (companion.hp / companion.maxHp) * 100) : 0;
-                                const affectionValue = companion.affection ?? 0;
-                                const affectionInfo = getAffectionInfo(affectionValue);
-                                // Affection is from -100 to 100. For percentage, we map it to 0-100.
-                                const affectionPercentage = ((affectionValue + 100) / 200) * 100;
+                                const affectionInfo = getAffectionDetails(companion.affection || 0);
+                                // Normalize affection from [-100, 100] to [0, 100] for the progress bar
+                                const affectionPercentage = ((companion.affection || 0) + 100) / 2;
 
                                 return (
-                                    <div key={companion.id} className="bg-gray-900/50 p-3 rounded-md border border-gray-700/50">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="font-bold text-gray-200">{companion.name}</span>
-                                            <span className="text-sm font-mono bg-gray-700 px-2 py-1 rounded">{companion.hp} / {companion.maxHp}</span>
+                                    <div key={companion.id} className="bg-gray-900/30 p-3 rounded-lg space-y-2">
+                                        {/* Name and HP */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="font-bold text-gray-200">{companion.name}</span>
+                                                <span className="text-sm font-mono bg-gray-700 px-2 py-0.5 rounded-sm">HP: {companion.hp} / {companion.maxHp}</span>
+                                            </div>
+                                            <div className="w-full bg-gray-600 rounded-full h-2.5 border border-gray-500">
+                                                <div
+                                                    className="bg-green-600 h-full rounded-full transition-all duration-500 ease-out"
+                                                    style={{ width: `${hpPercentage}%` }}
+                                                    title={`Máu: ${companion.hp}/${companion.maxHp}`}
+                                                ></div>
+                                            </div>
                                         </div>
-                                        <div className="w-full bg-gray-600 rounded-full h-2.5 border border-gray-500/50 mb-2">
-                                            <div
-                                                className="bg-green-600 h-full rounded-full transition-all duration-500 ease-out"
-                                                style={{ width: `${hpPercentage}%` }}
-                                                title={`Máu: ${companion.hp}/${companion.maxHp}`}
-                                            ></div>
-                                        </div>
-                                        <div className="flex justify-between items-center mb-1 text-xs">
-                                            <span className="font-bold text-gray-400">Tình cảm</span>
-                                            <span className={`font-semibold ${affectionInfo.colorClass.replace('bg-', 'text-')}`}>{affectionInfo.text}</span>
-                                        </div>
-                                        <div className="w-full bg-gray-600 rounded-full h-2.5 border border-gray-500/50">
-                                            <div
-                                                className={`${affectionInfo.colorClass} h-full rounded-full transition-all duration-500 ease-out`}
-                                                style={{ width: `${affectionPercentage}%` }}
-                                                title={`Tình cảm: ${affectionValue}`}
-                                            ></div>
+                                        {/* Affection */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1 text-xs">
+                                                <span className="font-bold text-gray-300">Tình Cảm</span>
+                                                <span className="font-semibold text-gray-200">{affectionInfo.icon} {affectionInfo.text}</span>
+                                            </div>
+                                            <div className="w-full bg-gray-600 rounded-full h-2.5 border border-gray-500" title={`Tình cảm: ${companion.affection || 0}`}>
+                                                <div
+                                                    className={`${affectionInfo.color} h-full rounded-full transition-all duration-500 ease-out`}
+                                                    style={{ width: `${affectionPercentage}%` }}
+                                                ></div>
+                                            </div>
                                         </div>
                                     </div>
                                 );

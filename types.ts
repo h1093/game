@@ -1,4 +1,3 @@
-
 export type CharacterClass = 'Warrior' | 'Rogue' | 'Scholar';
 export type Difficulty = 'Thử Thách' | 'Ác Mộng' | 'Đày Đoạ' | 'Địa Ngục';
 export type Gender = 'Nam' | 'Nữ' | 'Khác';
@@ -55,7 +54,7 @@ export interface Companion {
     hp: number;
     maxHp: number;
     description: string;
-    affection: number; // Tình cảm với người chơi, từ -100 (Căm ghét) đến 100 (Trung thành)
+    affection: number; // Tình cảm, từ -100 (Căm ghét) đến 100 (Bạn tâm giao)
 }
 
 export type QuestStatus = 'ACTIVE' | 'COMPLETED' | 'FAILED';
@@ -81,6 +80,12 @@ export interface Sanctuary {
     hope: number;
     residents: string[];
     improvements: string[];
+}
+
+export interface NPC {
+    id: string;
+    name: string;
+    description: string;
 }
 
 export interface PlayerState {
@@ -128,8 +133,7 @@ export interface PlayerState {
     bodyStatus: Record<BodyPart, InjuryLevel>;
     proficiency: Record<WeaponType, { level: number; xp: number }>;
     isMarked: boolean; // Dấu Hiệu Tế Thần
-    covenantActive: number | null; // Số lượt hiệu lực của Giao Ước
-    covenantCooldown: number; // Số lượt hồi chiêu của Giao Ước
+    hasSuccubusPact: boolean; // Giao Ước Đen Tối
     reputation: number; // Điểm uy tín
     appearance: Appearance; // Vẻ ngoài
     sanctuaries: Sanctuary[];
@@ -143,12 +147,24 @@ export interface Choice {
     staminaCost?: number;
 }
 
+export interface Enemy {
+    id: string;
+    name: string;
+    description: string;
+    bodyParts: Record<BodyPart, { hp: number; status: InjuryLevel; }>;
+    currentAction?: string; 
+}
+
 export interface GameState {
     phase: GamePhase;
     narrative: string;
     choices: Choice[];
     difficulty: Difficulty | null;
     turn: number;
+    nextDynamicWorldEventTurn: number;
+    enemies: Enemy[];
+    combatLog: string[];
+    npcsInScene: NPC[];
 }
 
 export interface StatusUpdate {
@@ -165,12 +181,13 @@ export interface StatusUpdate {
     bodyPartInjuries?: { part: BodyPart; level: InjuryLevel }[];
     isMarked?: boolean; // AI có thể đặt thành true để áp dụng Dấu Hiệu Tế Thần
     markRemoved?: boolean; // AI có thể đặt thành true để gỡ bỏ Dấu Hiệu, chỉ sau một nhiệm vụ cực kỳ khó khăn.
+    succubusPactMade?: boolean; // AI có thể đặt thành true để kích hoạt Giao Ước Đen Tối vĩnh viễn.
 }
 
 export interface CompanionUpdate {
     id: string;
     hpChange?: number;
-    affectionChange?: number;
+    affectionChange?: number; // Thay đổi về tình cảm
 }
 
 export interface QuestUpdate {
@@ -207,4 +224,7 @@ export interface GameData {
         description?: string;
         name?: string;
     }[] | null;
+    npcsInScene: NPC[] | null;
+    enemies: Enemy[] | null;
+    combatLog: string[] | null;
 }

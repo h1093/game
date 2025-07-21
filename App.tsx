@@ -1,10 +1,10 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GameState, PlayerState, GameData, Choice, CharacterClass, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary } from './types';
-import { INITIAL_PLAYER_STATE, GAME_TITLE, CLASSES, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY } from './constants';
+import { GameState, PlayerState, GameData, Choice, CharacterClass, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary, Enemy, NPC } from './types';
+import { INITIAL_PLAYER_STATE, GAME_TITLE, CLASSES, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY, DYNAMIC_WORLD_EVENT_TURN_MIN, DYNAMIC_WORLD_EVENT_TURN_MAX } from './constants';
 import { GameAIService } from './services/geminiService';
 import NarrativePanel from './components/NarrativePanel';
-import ActionPanel from './components/ActionPanel';
+import CombatPanel from './components/CombatPanel';
 import PlayerStatsPanel from './components/PlayerStatsPanel';
 import GameOverScreen from './components/GameOverScreen';
 import StartScreen from './components/StartScreen';
@@ -13,7 +13,7 @@ import InventoryScreen from './components/InventoryScreen';
 import EquipmentScreen from './components/EquipmentScreen';
 import InfoTabsPanel from './components/InfoTabsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
-import CovenantButton from './components/CovenantButton';
+import ArtPanel from './components/ArtPanel';
 
 // SVG Icons
 const IconInventory = (props: React.SVGProps<SVGSVGElement>) => (
@@ -53,10 +53,15 @@ const App: React.FC = () => {
         choices: [],
         difficulty: null,
         turn: 0,
+        nextDynamicWorldEventTurn: 0,
+        enemies: [],
+        combatLog: [],
+        npcsInScene: [],
     });
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [notification, setNotification] = useState<string>('');
     const [showTurnNotification, setShowTurnNotification] = useState<number | null>(null);
+    const [showDynamicWorldNotification, setShowDynamicWorldNotification] = useState<boolean>(false);
     const [log, setLog] = useState<string[]>([]);
     const [isInventoryOpen, setIsInventoryOpen] = useState(false);
     const [isEquipmentOpen, setIsEquipmentOpen] = useState(false);
@@ -64,6 +69,7 @@ const App: React.FC = () => {
     const [isNewGameConfirmOpen, setIsNewGameConfirmOpen] = useState(false);
     const [saveFileExists, setSaveFileExists] = useState<boolean>(false);
     const [customActionInput, setCustomActionInput] = useState('');
+    const [isCombatTestStarting, setIsCombatTestStarting] = useState<boolean>(false);
     const gameAIService = useRef<GameAIService | null>(null);
     
     // API Key Management State
@@ -72,6 +78,11 @@ const App: React.FC = () => {
     const [userApiKeys, setUserApiKeys] = useState<string[]>([]);
     const [currentApiKeyIndex, setCurrentApiKeyIndex] = useState(0);
     const [activeApiKey, setActiveApiKey] = useState<string | undefined>(undefined);
+
+    // Art Generation State
+    const [artImageUrl, setArtImageUrl] = useState<string | null>(null);
+    const [isArtLoading, setIsArtLoading] = useState<boolean>(false);
+    const lastNarrativeForArt = useRef<string>('');
 
     // App settings
     const [isMatureContent, setIsMatureContent] = useState<boolean>(false);
@@ -181,6 +192,15 @@ const App: React.FC = () => {
             }
         }
         
+        // Succubus Pact effects
+        if (currentState.hasSuccubusPact) {
+            newCharisma += 10;
+            newMaxSanity -= 20;
+            if (currentState.sanity < 30) {
+                newAttack += 5; // Vẻ Đẹp Điên Loạn bonus
+            }
+        }
+
         // Sanity penalties
         if (currentState.sanity < 50) {
             newDefense -= 2;
@@ -190,15 +210,11 @@ const App: React.FC = () => {
             newAttack -= 2;  // total -2 from base
         }
 
-        // Covenant bonus
-        if (currentState.covenantActive && currentState.covenantActive > 0) {
-            newAttack += 5; // Significant but temporary boost
-            newDefense += 5;
-        }
-        
-        // Mark of Sacrifice bonus (now a smaller, persistent effect)
+        // Mark of Sacrifice bonus/penalty
         if (currentState.isMarked) {
-            newAttack += 2;
+            newAttack += 1;     // Sức mạnh tuyệt vọng: +1 Tấn công.
+            newMaxSanity -= 15; // Ám ảnh thường trực: -15 Tâm trí tối đa.
+            newCharisma -= 5;   // Vẻ ngoài đáng sợ: -5 Sức hấp dẫn.
         }
 
         newState.attack = Math.max(0, newAttack);
@@ -207,7 +223,7 @@ const App: React.FC = () => {
         newState.maxHp = newMaxHp;
         newState.maxStamina = newMaxStamina;
         newState.maxMana = newMaxMana;
-        newState.maxSanity = newMaxSanity;
+        newState.maxSanity = Math.max(1, newMaxSanity); // Tâm trí tối đa không thể dưới 1
         newState.maxHunger = newMaxHunger;
         newState.maxThirst = newMaxThirst;
         
@@ -255,7 +271,8 @@ const App: React.FC = () => {
                 
                 if (savedData.playerState && savedData.gameState && savedData.gameState.difficulty) {
                     
-                    let loadedPlayerState = savedData.playerState;
+                    let loadedPlayerState: PlayerState = savedData.playerState;
+                    let loadedGameState: GameState = savedData.gameState;
                     // Ensure fields exist for older saves
                     loadedPlayerState = {...INITIAL_PLAYER_STATE, ...loadedPlayerState};
                     loadedPlayerState.sanctuaries = loadedPlayerState.sanctuaries || []; // Handle old saves
@@ -265,18 +282,35 @@ const App: React.FC = () => {
                         loadedPlayerState.baseCharisma = classData.stats.baseCharisma;
                         loadedPlayerState.charisma = classData.stats.baseCharisma;
                     }
-                    
-                    // Add default affection for old saves
+
+                    // Compatibility for saves before Affection system
                     if (loadedPlayerState.companions && loadedPlayerState.companions.length > 0) {
                         loadedPlayerState.companions = loadedPlayerState.companions.map((c: Companion) => ({
                             ...c,
                             affection: c.affection === undefined ? 0 : c.affection
                         }));
                     }
+                    
+                    // Compatibility for saves before Dynamic World system
+                    if (loadedGameState.nextDynamicWorldEventTurn === undefined) {
+                        loadedGameState.nextDynamicWorldEventTurn = loadedGameState.turn + DYNAMIC_WORLD_EVENT_TURN_MIN + Math.floor(Math.random() * (DYNAMIC_WORLD_EVENT_TURN_MAX - DYNAMIC_WORLD_EVENT_TURN_MIN + 1));
+                    }
+                    // Compatibility for saves before Combat system
+                    if (loadedGameState.enemies === undefined) {
+                        loadedGameState.enemies = [];
+                    }
+                    if (loadedGameState.combatLog === undefined) {
+                        loadedGameState.combatLog = [];
+                    }
+                     if (loadedGameState.npcsInScene === undefined) {
+                        loadedGameState.npcsInScene = [];
+                    }
 
+                    setArtImageUrl(null); // Clear previous art
+                    lastNarrativeForArt.current = '';
 
                     setPlayerState(recalculateStats(loadedPlayerState));
-                    setGameState(savedData.gameState); // This will trigger the useEffect to create the AI service
+                    setGameState(loadedGameState); // This will trigger the useEffect to create the AI service
                     
                     const msg = "Đã tải lại trò chơi từ điểm lưu cuối cùng.";
                     setNotification(msg);
@@ -310,6 +344,15 @@ const App: React.FC = () => {
             return () => clearTimeout(timer);
         }
     }, [showTurnNotification]);
+
+    useEffect(() => {
+        if (showDynamicWorldNotification) {
+            const timer = setTimeout(() => {
+                setShowDynamicWorldNotification(false);
+            }, 3000); // Display for 3 seconds
+            return () => clearTimeout(timer);
+        }
+    }, [showDynamicWorldNotification]);
     
     const handleApiError = useCallback((error: any) => {
         const isAuthError = error.toString().includes('API_KEY') || error.toString().includes('permission') || error.toString().includes('API Key');
@@ -335,11 +378,62 @@ const App: React.FC = () => {
         }
     }, [apiSource, userApiKeys, currentApiKeyIndex, addLogEntry, setNotification, setGameState, setCurrentApiKeyIndex]);
 
-    const processGameData = useCallback((gameData: GameData) => {
+    const handleGenerateArt = useCallback(async (narrative: string) => {
+        if (!gameAIService.current || !narrative || isArtLoading) {
+            return;
+        }
+
+        setIsArtLoading(true);
+        try {
+            // Use the first 2-3 sentences for a more focused prompt.
+            const shortNarrative = narrative.split('.').slice(0, 3).join('.').trim();
+            if(!shortNarrative) {
+                 setIsArtLoading(false);
+                 return;
+            }
+
+            const imageUrl = await gameAIService.current.generateImage(shortNarrative);
+            setArtImageUrl(imageUrl);
+        } catch (e) {
+            console.error("Lỗi khi tạo hình ảnh:", e);
+            addLogEntry("Không thể vẽ nên cơn ác mộng... (Lỗi tạo ảnh)");
+            setArtImageUrl(null);
+        } finally {
+            setIsArtLoading(false);
+        }
+    }, [addLogEntry, isArtLoading]);
+
+
+    useEffect(() => {
+        if (
+            gameState.narrative &&
+            gameState.narrative !== lastNarrativeForArt.current &&
+            !isLoading && // Wait for main game logic to finish loading
+            (gameState.phase === 'EXPLORING' || gameState.phase === 'COMBAT')
+        ) {
+            lastNarrativeForArt.current = gameState.narrative;
+            handleGenerateArt(gameState.narrative);
+        }
+    }, [gameState.narrative, isLoading, gameState.phase, handleGenerateArt]);
+
+
+    const processGameData = useCallback((gameData: GameData, isDynamicEventTriggered?: boolean) => {
         let profLevelUpMessage: string | null = null;
+        
+        // Apply pact-based modifications to the incoming data
+        if (playerStateRef.current.hasSuccubusPact && gameData.statusUpdate && (gameData.statusUpdate.reputationChange || 0) > 0) {
+            gameData.statusUpdate.reputationChange = 0;
+        }
 
         setGameState(prevState => {
-             const newTurn = (prevState.phase === 'EXPLORING' || prevState.phase === 'COMBAT') ? prevState.turn + 1 : prevState.turn;
+            const newTurn = (prevState.phase === 'EXPLORING' || prevState.phase === 'COMBAT') ? prevState.turn + 1 : prevState.turn;
+
+            let nextEventTurn = prevState.nextDynamicWorldEventTurn;
+            if (isDynamicEventTriggered) {
+                nextEventTurn = newTurn + DYNAMIC_WORLD_EVENT_TURN_MIN + Math.floor(Math.random() * (DYNAMIC_WORLD_EVENT_TURN_MAX - DYNAMIC_WORLD_EVENT_TURN_MIN + 1));
+                setShowDynamicWorldNotification(true);
+            }
+
             if (newTurn > prevState.turn) {
                 setShowTurnNotification(newTurn);
             }
@@ -349,22 +443,15 @@ const App: React.FC = () => {
                 narrative: gameData.narrative,
                 choices: gameData.choices,
                 turn: newTurn,
+                nextDynamicWorldEventTurn: nextEventTurn,
+                enemies: gameData.enemies || [],
+                combatLog: gameData.combatLog || [],
+                npcsInScene: gameData.npcsInScene ?? prevState.npcsInScene,
             };
         });
 
         setPlayerState(prevPlayerState => {
             let newPlayerState = { ...prevPlayerState };
-
-            // Game Tick for Cooldowns
-            let newCovenantActive = newPlayerState.covenantActive;
-            if (newCovenantActive && newCovenantActive > 0) {
-                newCovenantActive -= 1;
-            }
-            let newCovenantCooldown = newPlayerState.covenantCooldown;
-            if (newCovenantCooldown > 0) {
-                newCovenantCooldown -= 1;
-            }
-            newPlayerState = { ...newPlayerState, covenantActive: newCovenantActive, covenantCooldown: newCovenantCooldown };
 
             if (gameData.statusUpdate) {
                 const newHp = Math.max(0, newPlayerState.hp + (gameData.statusUpdate.hpChange || 0));
@@ -395,6 +482,15 @@ const App: React.FC = () => {
                         const unmarkMessage = "Gánh nặng đã được gỡ bỏ. Vết sẹo vẫn còn, nhưng lời nguyền đã tan biến. Lần đầu tiên sau một thời gian dài, bạn cảm thấy sự im lặng trong tâm hồn mình.";
                         addLogEntry(unmarkMessage);
                         setNotification(unmarkMessage);
+                    }, 50);
+                }
+                
+                if (gameData.statusUpdate.succubusPactMade && !newPlayerState.hasSuccubusPact) {
+                    newPlayerState.hasSuccubusPact = true;
+                    setTimeout(() => {
+                        const pactMessage = "Bạn đã lập một giao ước. Một sức mạnh vặn vẹo, quyến rũ tuôn chảy trong huyết quản bạn, với cái giá là một phần tâm trí của bạn.";
+                        addLogEntry(pactMessage);
+                        setNotification(pactMessage);
                     }, 50);
                 }
 
@@ -471,26 +567,24 @@ const App: React.FC = () => {
             }
 
             if (gameData.companionsAdded) {
-                newPlayerState = { ...newPlayerState, companions: [...newPlayerState.companions, ...gameData.companionsAdded] };
+                const newCompanions = gameData.companionsAdded.map(c => ({
+                    ...c,
+                    affection: c.affection === undefined ? 0 : c.affection,
+                }));
+                newPlayerState = { ...newPlayerState, companions: [...newPlayerState.companions, ...newCompanions] };
             }
             if (gameData.companionsRemoved) {
                 newPlayerState = { ...newPlayerState, companions: newPlayerState.companions.filter(c => !gameData.companionsRemoved?.includes(c.id)) };
             }
             if (gameData.companionUpdates) {
-                newPlayerState = {
+                 newPlayerState = {
                     ...newPlayerState,
                     companions: newPlayerState.companions.map(c => {
                         const update = gameData.companionUpdates?.find(u => u.id === c.id);
                         if (update) {
-                            const updatedCompanion = { ...c };
-                            if (typeof update.hpChange === 'number') {
-                                updatedCompanion.hp = Math.max(0, Math.min(c.maxHp, c.hp + update.hpChange));
-                            }
-                            if (typeof update.affectionChange === 'number') {
-                                const currentAffection = updatedCompanion.affection ?? 0;
-                                updatedCompanion.affection = Math.max(-100, Math.min(100, currentAffection + update.affectionChange));
-                            }
-                            return updatedCompanion;
+                            const newCompanionHp = Math.max(0, Math.min(c.maxHp, c.hp + (update.hpChange || 0)));
+                            const newAffection = Math.max(-100, Math.min(100, (c.affection || 0) + (update.affectionChange || 0)));
+                            return { ...c, hp: newCompanionHp, affection: newAffection };
                         }
                         return c;
                     })
@@ -598,6 +692,18 @@ const App: React.FC = () => {
         if(gameData.companionsAdded && gameData.companionsAdded.length > 0){
             notificationParts.push(`${gameData.companionsAdded.map(c => c.name).join(', ')} đã gia nhập nhóm.`);
         }
+        if(gameData.companionUpdates && gameData.companionUpdates.length > 0) {
+            gameData.companionUpdates.forEach(update => {
+                if (update.affectionChange) {
+                    const companion = playerStateRef.current.companions.find(c => c.id === update.id);
+                    if (companion) {
+                        const direction = update.affectionChange > 0 ? 'tăng lên' : 'giảm xuống';
+                        notificationParts.push(`Tình cảm của ${companion.name} đã ${direction}.`);
+                    }
+                }
+            });
+        }
+
 
         if (notificationParts.length > 0) {
             const message = notificationParts.join(' ');
@@ -618,12 +724,19 @@ const App: React.FC = () => {
         }
 
         setIsLoading(true);
+        setGameState(prevState => ({...prevState, combatLog: [] })); // Clear combat log on new action
         if (staminaCost > 0) {
             setPlayerState(prev => ({ ...prev, stamina: Math.max(0, prev.stamina - staminaCost) }));
         }
+        
+        const isDynamicEvent = gameStateRef.current.turn + 1 >= gameStateRef.current.nextDynamicWorldEventTurn;
+        let finalPrompt = choice.prompt;
+        if (isDynamicEvent) {
+            finalPrompt = `(Sự kiện Thế Giới Động xảy ra) ${finalPrompt}`;
+        }
 
         try {
-            const response = await gameAIService.current.sendAction(choice.prompt);
+            const response = await gameAIService.current.sendAction(finalPrompt);
             let gameData: GameData;
 
             try {
@@ -644,9 +757,12 @@ const App: React.FC = () => {
                     questsAdded: null,
                     questUpdates: null,
                     proficiencyUpdate: null,
+                    npcsInScene: gameStateRef.current.npcsInScene,
+                    enemies: gameStateRef.current.enemies,
+                    combatLog: ["(Lỗi hệ thống: AI không phản hồi đúng định dạng.)"],
                 };
             }
-            processGameData(gameData);
+            processGameData(gameData, isDynamicEvent);
         } catch (e) {
             console.error("Lỗi khi xử lý hành động:", e);
             handleApiError(e);
@@ -659,9 +775,14 @@ const App: React.FC = () => {
         if (!gameAIService.current || isLoading || !actionText.trim()) return;
 
         setIsLoading(true);
+        setGameState(prevState => ({...prevState, combatLog: [] })); // Clear combat log
         setCustomActionInput('');
 
-        const prompt = `Người chơi thực hiện một hành động tùy chỉnh: "${actionText}". Mô tả kết quả của hành động này trong câu chuyện.`;
+        let prompt = `Người chơi thực hiện một hành động tùy chỉnh: "${actionText}". Mô tả kết quả của hành động này trong câu chuyện.`;
+        const isDynamicEvent = gameStateRef.current.turn + 1 >= gameStateRef.current.nextDynamicWorldEventTurn;
+        if (isDynamicEvent) {
+            prompt = `(Sự kiện Thế Giới Động xảy ra) ${prompt}`;
+        }
 
         try {
             const response = await gameAIService.current.sendAction(prompt);
@@ -685,9 +806,12 @@ const App: React.FC = () => {
                     questsAdded: null,
                     questUpdates: null,
                     proficiencyUpdate: null,
+                    npcsInScene: gameStateRef.current.npcsInScene,
+                    enemies: gameStateRef.current.enemies,
+                    combatLog: ["(Hành động tùy chỉnh không có kết quả.)"],
                 };
             }
-            processGameData(gameData);
+            processGameData(gameData, isDynamicEvent);
         } catch (e) {
             console.error("Lỗi khi xử lý hành động tùy chỉnh:", e);
             handleApiError(e);
@@ -719,6 +843,7 @@ const App: React.FC = () => {
         setIsInventoryOpen(false);
 
         setIsLoading(true);
+        setGameState(prevState => ({...prevState, combatLog: [] })); // Clear combat log
         setPlayerState(prev => {
             const newCooldowns = { ...prev.skillCooldowns, [skill.id]: skill.cooldown };
             const newMana = skill.costType === 'MANA' ? Math.max(0, prev.mana - skill.cost) : prev.mana;
@@ -726,7 +851,11 @@ const App: React.FC = () => {
             return { ...prev, mana: newMana, stamina: newStamina, skillCooldowns: newCooldowns };
         });
 
-        const prompt = `Tôi sử dụng kỹ năng '${skill.name}'. Mô tả hậu quả của việc sử dụng kỹ năng này trong câu chuyện.`;
+        let prompt = `Tôi sử dụng kỹ năng '${skill.name}'. Mô tả hậu quả của việc sử dụng kỹ năng này trong câu chuyện.`;
+        const isDynamicEvent = gameStateRef.current.turn + 1 >= gameStateRef.current.nextDynamicWorldEventTurn;
+        if (isDynamicEvent) {
+            prompt = `(Sự kiện Thế Giới Động xảy ra) ${prompt}`;
+        }
 
         try {
             const response = await gameAIService.current.sendAction(prompt);
@@ -741,7 +870,7 @@ const App: React.FC = () => {
                     narrative: `Năng lượng từ kỹ năng ${skill.name} của bạn bị tiêu tan vào không khí một cách vô hại. Dường như có gì đó đã chặn nó lại.`,
                     choices: gameStateRef.current.choices,
                     statusUpdate: null,
-                    gameState: 'EXPLORING',
+                    gameState: gameStateRef.current.phase,
                     itemsFound: null,
                     skillsLearned: null,
                     companionsAdded: null,
@@ -750,9 +879,12 @@ const App: React.FC = () => {
                     questsAdded: null,
                     questUpdates: null,
                     proficiencyUpdate: null,
+                    npcsInScene: gameStateRef.current.npcsInScene,
+                    enemies: gameStateRef.current.enemies,
+                    combatLog: [`(Sử dụng kỹ năng ${skill.name} thất bại.)`],
                 };
             }
-            processGameData(gameData);
+            processGameData(gameData, isDynamicEvent);
         } catch (e) {
             console.error("Lỗi khi xử lý kỹ năng:", e);
             handleApiError(e);
@@ -902,7 +1034,7 @@ const App: React.FC = () => {
         setIsNewGameConfirmOpen(false);
     }, [setIsNewGameConfirmOpen]);
 
-    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; race: string }) => {
+    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => {
         const { name, bio, characterClass, difficulty, gender, personality, goal } = details;
         
         const classData = CLASSES[characterClass];
@@ -927,6 +1059,8 @@ const App: React.FC = () => {
         setPlayerState(recalculateStats(baseState));
         setIsLoading(true);
         
+        const firstEventTurn = DYNAMIC_WORLD_EVENT_TURN_MIN + Math.floor(Math.random() * (DYNAMIC_WORLD_EVENT_TURN_MAX - DYNAMIC_WORLD_EVENT_TURN_MIN + 1));
+        
         // Set EXPLORING phase, which will trigger the story generation useEffect.
         setGameState(prevState => ({ 
             ...prevState, 
@@ -934,7 +1068,11 @@ const App: React.FC = () => {
             narrative: "Câu chuyện của bạn sắp bắt đầu...", 
             difficulty: difficulty, 
             choices: [], 
-            turn: 0 
+            turn: 0,
+            nextDynamicWorldEventTurn: firstEventTurn,
+            enemies: [],
+            combatLog: [],
+            npcsInScene: [],
         }));
     }, [recalculateStats, setPlayerState, setIsLoading, setGameState]);
 
@@ -984,9 +1122,12 @@ const App: React.FC = () => {
                             questsAdded: null,
                             questUpdates: null,
                             proficiencyUpdate: null,
+                            npcsInScene: null,
+                            enemies: null,
+                            combatLog: null,
                         };
                     }
-                    processGameData(gameData);
+                    processGameData(gameData, false);
                 } catch (e) {
                     console.error("Lỗi khi bắt đầu câu chuyện:", e);
                     handleApiError(e);
@@ -1001,35 +1142,6 @@ const App: React.FC = () => {
         startStory();
     }, [gameState.phase, gameState.turn, gameState.difficulty, isLoading, activeApiKey, isMatureContent, apiSource, addLogEntry, processGameData, handleApiError]);
 
-    const handleActivateCovenant = useCallback(() => {
-        if (!playerState.isMarked || playerState.covenantCooldown > 0) return;
-
-        const sanityCost = 25;
-        const permanentSanityCost = 5;
-        const reputationCost = 10;
-        const cooldownDuration = 10;
-        const activeDuration = 3;
-
-        setPlayerState(prev => {
-            const newSanity = Math.max(0, prev.sanity - sanityCost);
-            const newMaxSanity = Math.max(0, prev.maxSanity - permanentSanityCost);
-            const newReputation = prev.reputation - reputationCost;
-            
-            const msg = `Bạn đã chấp nhận Giao Ước. Sức mạnh hắc ám trào dâng, nhưng một phần linh hồn của bạn đã vĩnh viễn bị bào mòn.`;
-            setNotification(msg);
-            addLogEntry(msg);
-
-            return recalculateStats({
-                ...prev,
-                sanity: newSanity,
-                maxSanity: newMaxSanity,
-                reputation: newReputation,
-                covenantActive: activeDuration,
-                covenantCooldown: cooldownDuration,
-            });
-        });
-    }, [playerState.isMarked, playerState.covenantCooldown, addLogEntry, setNotification, recalculateStats]);
-
 
     const restartGame = useCallback(() => {
         setPlayerState(INITIAL_PLAYER_STATE);
@@ -1039,6 +1151,10 @@ const App: React.FC = () => {
             choices: [],
             difficulty: null,
             turn: 0,
+            nextDynamicWorldEventTurn: 0,
+            enemies: [],
+            combatLog: [],
+            npcsInScene: [],
         });
         setLog([]);
         setIsInventoryOpen(false);
@@ -1046,6 +1162,8 @@ const App: React.FC = () => {
         setIsExitConfirmOpen(false);
         setIsNewGameConfirmOpen(false);
         setNotification('');
+        setArtImageUrl(null);
+        lastNarrativeForArt.current = '';
         gameAIService.current = null;
     }, [setPlayerState, setGameState, setLog, setIsInventoryOpen, setIsEquipmentOpen, setIsExitConfirmOpen, setIsNewGameConfirmOpen, setNotification]);
 
@@ -1113,6 +1231,92 @@ const App: React.FC = () => {
         });
     }, [setNotification]);
 
+    const handleStartCombatTest = useCallback(() => {
+        const testPlayerClass: CharacterClass = 'Warrior';
+        const classData = CLASSES[testPlayerClass];
+        const initialTestPlayerState = {
+            ...INITIAL_PLAYER_STATE,
+            name: "Chiến Binh Thử Nghiệm",
+            bio: "Một linh hồn được triệu hồi chỉ để chiến đấu và chết.",
+            class: testPlayerClass,
+            gender: 'Khác' as Gender,
+            personality: "Dũng Cảm",
+            goal: "Sống sót qua trận chiến này.",
+            ...classData.stats,
+            hp: classData.stats.baseMaxHp,
+            stamina: classData.stats.baseMaxStamina,
+            mana: classData.stats.baseMaxMana,
+            sanity: classData.stats.baseMaxSanity,
+            hunger: classData.stats.baseMaxHunger,
+            thirst: classData.stats.baseMaxThirst,
+            charisma: classData.stats.baseCharisma,
+        };
+        setPlayerState(recalculateStats(initialTestPlayerState));
+        setIsLoading(true);
+
+        const difficulty: Difficulty = 'Thử Thách';
+        const firstEventTurn = DYNAMIC_WORLD_EVENT_TURN_MIN + Math.floor(Math.random() * (DYNAMIC_WORLD_EVENT_TURN_MAX - DYNAMIC_WORLD_EVENT_TURN_MIN + 1));
+        
+        setGameState({
+            phase: 'COMBAT',
+            narrative: "Bạn bị đẩy vào một đấu trường bụi bặm. Trước mặt bạn, một sinh vật ghê tởm đang gầm gừ...",
+            difficulty: difficulty,
+            choices: [],
+            turn: 0,
+            nextDynamicWorldEventTurn: firstEventTurn,
+            enemies: [],
+            combatLog: [],
+            npcsInScene: [],
+        });
+
+        setIsCombatTestStarting(true);
+    }, [recalculateStats, setPlayerState, setIsLoading, setGameState]);
+
+    // This effect runs once to generate the initial combat scenario for testing.
+    useEffect(() => {
+        const startCombatTest = async () => {
+            if (isCombatTestStarting) {
+                try {
+                    if (!activeApiKey) throw new Error("API Key không hoạt động.");
+                    if (!gameState.difficulty) throw new Error("Độ khó chưa được thiết lập.");
+
+                    const initialPrompt = `BẮT ĐẦU TRẬN CHIẾN THỬ NGHIỆM. Người chơi là một Chiến Binh. Tạo ra một kẻ thù (ví dụ: một con Ghoul hoặc Bộ Xương) với các bộ phận cơ thể và HP đầy đủ. Mô tả sự bắt đầu của trận chiến, tình trạng của kẻ thù và đưa ra các lựa chọn chiến thuật đầu tiên cho người chơi. Trạng thái game phải là 'COMBAT'.`;
+
+                    const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent);
+                    gameAIService.current = service;
+                    addLogEntry(`Dịch vụ AI được khởi tạo cho Chế độ Thử nghiệm Chiến đấu.`);
+
+                    const response = await service.sendAction(initialPrompt);
+                    let gameData: GameData;
+
+                    try {
+                        const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+                        gameData = JSON.parse(cleanResponse);
+                    } catch (e) {
+                            console.error("Không thể phân tích phản hồi JSON từ AI:", e, "Phản hồi thô từ AI:", response);
+                        gameData = {
+                            narrative: "Có lỗi khi bắt đầu trận chiến thử nghiệm. AI không phản hồi đúng định dạng. Trở về màn hình chính.",
+                            choices: [],
+                            statusUpdate: null,
+                            gameState: 'TITLE_SCREEN',
+                            itemsFound: null, skillsLearned: null, companionsAdded: null, companionsRemoved: null, companionUpdates: null, questsAdded: null, questUpdates: null, proficiencyUpdate: null, npcsInScene: null, enemies: null, combatLog: null
+                        };
+                    }
+                    processGameData(gameData, false);
+                } catch (e) {
+                    console.error("Lỗi khi bắt đầu trận chiến thử nghiệm:", e);
+                    handleApiError(e);
+                    setGameState(g => ({...g, phase: 'TITLE_SCREEN', narrative: ''}));
+                } finally {
+                    setIsLoading(false);
+                    setIsCombatTestStarting(false);
+                }
+            }
+        };
+
+        startCombatTest();
+    }, [isCombatTestStarting, activeApiKey, gameState.difficulty, isMatureContent, addLogEntry, processGameData, handleApiError]);
+
 
     if (gameState.phase === 'TITLE_SCREEN') {
         return (
@@ -1124,6 +1328,7 @@ const App: React.FC = () => {
                     onOpenApiKeyManager={() => setIsApiKeyManagerOpen(true)}
                     isMatureContent={isMatureContent}
                     onToggleMatureContent={handleToggleMatureContent}
+                    onStartCombatTest={handleStartCombatTest}
                 />
                 <ApiKeyManager 
                     isOpen={isApiKeyManagerOpen}
@@ -1138,7 +1343,7 @@ const App: React.FC = () => {
     }
 
     if (gameState.phase === 'CHARACTER_CREATION') {
-        return <CharacterCreationScreen onCharacterCreate={handleCharacterCreation} />;
+        return <CharacterCreationScreen onCharacterCreate={handleCharacterCreation} activeApiKey={activeApiKey} />;
     }
 
     if (gameState.phase === 'GAMEOVER') {
@@ -1161,9 +1366,17 @@ const App: React.FC = () => {
             
             <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 flex flex-col gap-6">
-                    <NarrativePanel narrative={gameState.narrative} isLoading={isLoading} />
-                    <ActionPanel 
-                        choices={gameState.choices} 
+                    <ArtPanel imageUrl={artImageUrl} isLoading={isArtLoading} />
+                    <NarrativePanel 
+                        narrative={gameState.narrative} 
+                        combatLog={gameState.combatLog} 
+                        isLoading={isLoading} 
+                        npcsInScene={gameState.npcsInScene}
+                    />
+                    <CombatPanel 
+                        choices={gameState.choices}
+                        enemies={gameState.enemies}
+                        phase={gameState.phase}
                         onAction={handleAction} 
                         isLoading={isLoading} 
                         playerState={playerState}
@@ -1183,15 +1396,7 @@ const App: React.FC = () => {
                                 sanctuaries={playerState.sanctuaries} 
                             />
                         </div>
-                         <div className="flex-shrink-0 p-4 border-t border-gray-700/50 space-y-3">
-                             {playerState.isMarked && (
-                                <CovenantButton
-                                    onActivate={handleActivateCovenant}
-                                    cooldown={playerState.covenantCooldown}
-                                    isActive={!!playerState.covenantActive && playerState.covenantActive > 0}
-                                    isLoading={isLoading}
-                                />
-                             )}
+                         <div className="flex-shrink-0 p-4 border-t border-gray-700/50">
                              <div className="grid grid-cols-3 gap-3">
                                 <button
                                     onClick={() => setIsInventoryOpen(true)}
@@ -1244,6 +1449,16 @@ const App: React.FC = () => {
                     Lượt {showTurnNotification}
                 </div>
             )}
+            
+            {showDynamicWorldNotification && (
+                <div 
+                    key={Date.now()}
+                    className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-black/70 text-white font-title text-xl py-2 px-6 rounded-full shadow-lg border border-purple-500/30 animate-world-shift z-50"
+                >
+                    Thế giới không ngừng xoay chuyển...
+                </div>
+            )}
+
 
             {notification && (
                  <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-gray-800 text-white py-2 px-6 rounded-lg shadow-lg border border-red-500/50 animate-fadeIn z-50">

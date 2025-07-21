@@ -1,13 +1,18 @@
 
-import { PlayerState, CharacterClass, Difficulty, Gender, WeaponType } from './types';
+import { PlayerState, CharacterClass, Difficulty, Gender, WeaponType, BodyPart } from './types';
 
 export const SAVE_KEY = "darkFantasyRPGSaveData";
 export const API_KEYS_STORAGE_KEY = "darkFantasyApiKeys";
 export const API_SOURCE_STORAGE_KEY = "darkFantasyApiSource";
-export const GAME_TITLE = "Vang Vọng của Bóng Tối";
+export const GAME_TITLE = "Lời Nguyền Của Vực Thẳm";
 export const GAME_INTRO = "Bạn tỉnh dậy trong một vương quốc của hoàng hôn và hoang tàn. Không khí đặc quánh bụi của thời gian và mùi của đất sau mưa trên đá lạnh. Ký ức của bạn là một tấm thảm rách nát, chỉ còn lại một sợi duy nhất: một cái tên, được thì thầm trên gió... tên của bạn. Trước mắt bạn, những con đường rẽ vào bóng tối đang bao trùm. Bạn sẽ làm gì?";
 
 export const WEAPON_TYPES: WeaponType[] = ['SWORD', 'AXE', 'DAGGER', 'MACE', 'SPEAR', 'BOW', 'STAFF', 'UNARMED'];
+export const BODY_PARTS: BodyPart[] = ['head', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'];
+
+export const DYNAMIC_WORLD_EVENT_TURN_MIN = 7;
+export const DYNAMIC_WORLD_EVENT_TURN_MAX = 15;
+
 
 export const INITIAL_PLAYER_STATE: PlayerState = {
     hp: 0,
@@ -66,8 +71,7 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
         UNARMED: { level: 1, xp: 0 },
     },
     isMarked: false,
-    covenantActive: null,
-    covenantCooldown: 0,
+    hasSuccubusPact: false,
     reputation: 0,
     appearance: 'DIRTY',
     sanctuaries: [],

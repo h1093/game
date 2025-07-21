@@ -19,6 +19,14 @@ const IconFlame = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 4.5c.9-.9 2.1-.9 3 0s.9 2.1 0 3L13 12l-4-4 5.5-5.5z"/><path d="M14.5 4.5c-1-1-2.2-1.8-3.5-1.8-1.3 0-2.5.8-3.5 1.8-1 1-1.8 2.2-1.8 3.5 0 1.3.8 2.5 1.8 3.5l8 8c1 1 2.2 1.8 3.5 1.8 1.3 0 2.5-.8 3.5-1.8 1-1 1.8-2.2 1.8-3.5 0-1.3-.8-2.5-1.8-3.5l-8-8z"/></svg>
 );
 
+const IconSword = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M21.5 3.5-3.5 21.5"/>
+        <path d="m16 3-8 8 3 3 8-8-3-3"/>
+        <path d="m13 6 3 3"/>
+        <path d="M3 18l3 3"/>
+    </svg>
+);
 
 interface StartScreenProps {
     onStartGame: () => void;
@@ -27,6 +35,7 @@ interface StartScreenProps {
     onOpenApiKeyManager: () => void;
     isMatureContent: boolean;
     onToggleMatureContent: () => void;
+    onStartCombatTest: () => void;
 }
 
 const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
@@ -43,6 +52,99 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
             </button>
             <h2 className="text-3xl font-title text-red-400 border-b-2 border-red-500/30 pb-2">Nhật Ký Cập Nhật</h2>
             
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.1: Tiếng Vọng Trong Hoang Tàn</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[CẬP NHẬT CỐT LÕI]</span> **THẾ GIỚI KHÔNG TRỐNG RỖNG**: Một quy tắc nền tảng mới đã được khắc vào bộ não của AI Quản Trò. Thế giới không còn là một chuỗi các căn phòng trống.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[SỰ SỐNG BỀN BỈ]</span> AI giờ đây bị **bắt buộc** phải tích cực tạo ra sự sống (hoặc tàn dư của nó) trong hầu hết mọi cảnh. Điều này đảm bảo rằng hành trình của bạn sẽ luôn đầy ắp các cuộc gặp gỡ tiềm năng, các mối đe dọa bất ngờ và những mảnh đời vỡ nát.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[SỰ ĐA DẠNG CỦA SỰ SỐNG]</span> NPC có thể là những người sống sót, những sinh vật kỳ lạ, hoặc thậm chí chỉ là những cái xác mang theo những câu chuyện câm lặng. Sự cô đơn giờ đây là một lựa chọn, không phải là mặc định.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.0: Vòng Lặp Vĩnh Cửu</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[ĐẠI TU TOÀN DIỆN]</span> **Thế Giới Sống Động & Hậu Quả**: Phiên bản này củng cố và tích hợp các hệ thống cốt lõi để tạo ra một trải nghiệm nhập vai sâu sắc và nghiệt ngã hơn.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[NPC ĐỘNG]</span> Thế giới không còn trống rỗng. AI Quản Trò giờ đây chủ động tạo ra các **NPC động** với mục đích và câu chuyện riêng, khiến mỗi khu vực trở nên sống động và khó lường.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[HỆ THỐNG HẬU QUẢ]</span> **Sự Chú Ý Của Vực Thẳm**: Mỗi hành động tàn nhẫn và tha hóa của bạn sẽ khiến Vực Thẳm chú ý, làm cho thế giới ngày càng trở nên thù địch, kẻ thù nguy hiểm hơn và sự cứu rỗi xa vời hơn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-blue-400">[TƯƠNG TÁC XÃ HỘI]</span> Các hệ thống **Uy Tín**, **Diện Mạo**, và **Tình Cảm Đồng Đội** giờ đây hoạt động phối hợp, tạo ra một mạng lưới các mối quan hệ xã hội phức tạp.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-yellow-400">[CƠ CHẾ CỐT LÕI]</span> Củng cố các hệ thống chiến đấu nhắm mục tiêu bộ phận cơ thể, quản lý Tâm Trí, Đói/Khát, và hệ thống Thương Tật chi tiết, tạo ra một trải nghiệm sinh tồn tàn bạo.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.3: Con Mắt Của Vực Thẳm</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> **Hình Ảnh Hóa Cơn Ác Mộng**: Mỗi cảnh quan, mỗi cuộc chạm trán giờ đây sẽ được đi kèm với một hình ảnh độc nhất do AI tạo ra, kéo bạn sâu hơn vào thế giới kinh hoàng của 'Lời Nguyền Của Vực Thẳm'.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[CẢI TIẾN CÔNG NGHỆ]</span> Tích hợp mô hình sinh ảnh **Imagen 3** để tạo ra các tác phẩm nghệ thuật đầy ám ảnh, phản ánh chính xác không khí và chi tiết của câu chuyện.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-blue-400">[CẢI TIẾN GIAO DIỆN]</span> Một bảng điều khiển nghệ thuật mới đã được thêm vào phía trên câu chuyện, hiển thị hình ảnh của thế giới khi nó thay đổi.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.2: Sợi Dây Tình Cảm</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Tình Cảm (Affection)**: Mối quan hệ của bạn với đồng đội giờ đây sẽ được theo dõi. Mỗi hành động của bạn, từ việc chia sẻ chiến lợi phẩm đến những quyết định đạo đức, đều sẽ ảnh hưởng đến cách họ nhìn nhận bạn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[CẢI TIẾN GAMEPLAY]</span> Tình cảm của đồng đội sẽ có hậu quả thực sự. Lòng trung thành cao có thể mở khóa các nhiệm vụ cá nhân, các lựa chọn đối thoại đặc biệt, và sự hỗ trợ mạnh mẽ hơn trong chiến đấu. Ngược lại, tình cảm thấp có thể dẫn đến sự bất tuân, phản bội, hoặc thậm chí là họ sẽ rời bỏ bạn vào lúc nguy cấp nhất.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-blue-400">[CẢI TIẾN GIAO DIỆN]</span> Bảng Đồng Đội giờ đây hiển thị một thanh Tình Cảm bên cạnh thanh máu, cho bạn thấy rõ mức độ yêu ghét của họ. Các trạng thái từ "Căm Ghét" đến "Bạn Tâm Giao" sẽ cho bạn biết chính xác vị trí của mình trong lòng họ.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-yellow-400">[CẬP NHẬT AI]</span> AI Quản Trò giờ đây đã được huấn luyện để quản lý và phản hồi lại hệ thống Tình Cảm, tạo ra những câu chuyện năng động và các mối quan hệ phức tạp hơn.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.1: Ánh Sáng Leo Lắt</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Thánh Địa (Sanctuary)**: Giữa tro tàn, bạn có thể tìm thấy và vun đắp những tia hy vọng. Khám phá những nơi trú ẩn tiềm năng, phát triển chúng và biến chúng thành Thánh Địa của riêng bạn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Chỉ số **Hy Vọng (Hope)**: Các Thánh Địa giờ đây có chỉ số Hy Vọng. Giúp đỡ những người sống sót, hoàn thành các nhiệm vụ xây dựng cộng đồng để thắp lên ngọn lửa hy vọng, hoặc chứng kiến nó lụi tàn trước sự tàn khốc của thế giới.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> **Xây Dựng Cộng Đồng**: Thuyết phục các NPC hiếm hoi có lòng tốt chuyển đến Thánh Địa của bạn. Họ có thể cung cấp các lợi ích độc nhất, nhưng cũng là những sinh mạng quý giá mà bạn phải bảo vệ.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[CẢI TIẾN GAMEPLAY]</span> Tương tác xã hội sâu sắc hơn với hệ thống **Uy Tín (Reputation)** và **Diện Mạo (Appearance)**. Cách bạn hành động và vẻ ngoài của bạn sẽ ảnh hưởng trực tiếp đến cách thế giới phản ứng với bạn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-yellow-400">[MỤC TIÊU CUỐI GAME]</span> Một Thánh Địa được phát triển đầy đủ có thể mở khóa một con đường để **thanh tẩy Dấu Hiệu Tế Thần**, nhưng cái giá phải trả sẽ vô cùng đắt.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-blue-400">[CẢI TIẾN GIAO DIỆN]</span> Bảng điều khiển Thánh Địa đã được thêm vào giao diện chính để dễ dàng quản lý.
+                    </li>
+                </ul>
+            </div>
+
              <div className="border-b border-gray-700 pb-6">
                 <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.0: Vực Thẳm Nhìn Lại</h3>
                 <ul className="list-disc list-inside space-y-3 text-gray-300">
@@ -206,7 +308,7 @@ Nếu viết theo ví dụ thì nó giúp bạn tiết kiếm lại thời để
 );
 
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists, onOpenApiKeyManager, isMatureContent, onToggleMatureContent }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists, onOpenApiKeyManager, isMatureContent, onToggleMatureContent, onStartCombatTest }) => {
     const [isUpdateLogOpen, setIsUpdateLogOpen] = useState(false);
 
     return (
@@ -234,6 +336,13 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
                         title="Bắt đầu cuộc phiêu lưu mới"
                     >
                         Trò Chơi Mới
+                    </button>
+                    <button
+                        onClick={onStartCombatTest}
+                        className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-6 rounded-lg text-lg transition-all duration-300 flex items-center gap-2"
+                        title="Bỏ qua tạo nhân vật và vào ngay một trận chiến."
+                    >
+                        <IconSword /> Thử nghiệm Chiến đấu
                     </button>
                     <button
                         onClick={() => setIsUpdateLogOpen(true)}

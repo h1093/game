@@ -3,7 +3,7 @@ import { Origin, Difficulty, Gender } from '../types';
 import { BASE_STATS_BEFORE_POINT_BUY } from '../constants';
 
 const IconEye = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
 );
 
 interface CreatorsWillScreenProps {
@@ -15,6 +15,7 @@ interface CreatorsWillScreenProps {
         gender: Gender;
         personality: string;
         goal: string;
+        talent: string;
         finalStats: any;
     }, isCreatorsWill?: boolean) => void;
     onBack: () => void;
@@ -33,6 +34,7 @@ const CreatorsWillScreen: React.FC<CreatorsWillScreenProps> = ({ onCharacterCrea
             gender: 'Khác' as Gender,
             personality: "Toàn Năng",
             goal: "Chơi đùa với các sợi chỉ của số phận",
+            talent: '', // Talent is not selected in this mode
             finalStats: { ...BASE_STATS_BEFORE_POINT_BUY }
         };
         onCharacterCreate(characterDetails, true);

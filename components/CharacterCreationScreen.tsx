@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { Origin, Difficulty, Gender } from '../types';
-import { ORIGINS, DIFFICULTIES, GENDERS, PERSONALITIES, GOALS, DIFFICULTY_POINT_BUY, BASE_STATS_BEFORE_POINT_BUY, PERSONALITY_NAMES } from '../constants';
+import { ORIGINS, DIFFICULTIES, GENDERS, PERSONALITIES, GOALS, DIFFICULTY_POINT_BUY, BASE_STATS_BEFORE_POINT_BUY, PERSONALITY_NAMES, TALENTS } from '../constants';
 
 // SVG Icons
 const IconUser = (props: React.SVGProps<SVGSVGElement>) => (
@@ -32,8 +33,8 @@ const IconSmile = (props: React.SVGProps<SVGSVGElement>) => (
 const IconCompass = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
 );
-const IconX = ({ size, ...props }: React.SVGProps<SVGSVGElement> & { size: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+const IconGift = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
 );
 const IconEye = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -41,7 +42,7 @@ const IconEye = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 interface CharacterCreationScreenProps {
-    onCharacterCreate: (details: { name: string; bio: string; origin: Origin; difficulty: Difficulty; gender: Gender; personality: string; goal: string; finalStats: any }, isCreatorsWill?: boolean) => void;
+    onCharacterCreate: (details: { name: string; bio: string; origin: Origin; difficulty: Difficulty; gender: Gender; personality: string; goal: string; talent: string; finalStats: any }, isCreatorsWill?: boolean) => void;
     activeApiKey: string | undefined;
     onGoToCreatorsWill: () => void;
 }
@@ -59,6 +60,9 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
     const [error, setError] = useState('');
     const [isBioLoading, setIsBioLoading] = useState(false);
     
+    const [proposedTalents, setProposedTalents] = useState<{ id: string; name: string; description: string; }[]>([]);
+    const [selectedTalent, setSelectedTalent] = useState<string | null>(null);
+
     const [points, setPoints] = useState<Record<StatKey, number>>({
         baseMaxHp: 0, baseMaxStamina: 0, baseMaxMana: 0, baseMaxSanity: 0, baseAttack: 0, baseDefense: 0, baseCharisma: 0,
     });
@@ -80,7 +84,6 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
         (Object.keys(calculatedStats) as StatKey[]).forEach(key => {
             const pointValue = points[key] * (key.includes('Max') ? 5 : 1);
             const bonusValueRaw = originBonuses[key];
-            // Ensure we only add numeric bonuses here. Proficiency is handled separately.
             const bonusValue = typeof bonusValueRaw === 'number' ? bonusValueRaw : 0;
             calculatedStats[key] += pointValue + bonusValue;
         });
@@ -88,6 +91,24 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
         return calculatedStats;
     }, [points, selectedOrigin]);
 
+    const handleRerollTalents = () => {
+        if (selectedOrigin) {
+            const originTalents = TALENTS[selectedOrigin];
+            const shuffled = [...originTalents].sort(() => 0.5 - Math.random());
+            setProposedTalents(shuffled.slice(0, 3));
+            setSelectedTalent(null);
+        }
+    };
+
+    useEffect(() => {
+        if (selectedOrigin) {
+            handleRerollTalents();
+        } else {
+            setProposedTalents([]);
+            setSelectedTalent(null);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedOrigin]);
 
     const handlePointChange = (stat: StatKey, delta: number) => {
         if (!selectedDifficulty) return;
@@ -116,6 +137,7 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
         e.preventDefault();
         if (!name.trim()) { setError('Nhân vật của bạn phải có tên.'); return; }
         if (!selectedOrigin) { setError('Bạn phải chọn một Nguồn Gốc.'); return; }
+        if (!selectedTalent) { setError('Bạn phải chọn một Thiên Phú.'); return; }
         if (!selectedGender) { setError('Hãy chọn giới tính.'); return; }
         if (!selectedPersonality) { setError('Hãy chọn một tính cách.'); return; }
         if (!selectedDifficulty) { setError('Bạn phải chọn một độ khó.'); return; }
@@ -123,7 +145,8 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
         const characterDetails = {
             name, bio, origin: selectedOrigin, difficulty: selectedDifficulty, 
             gender: selectedGender, personality: selectedPersonality, goal: selectedGoal,
-            finalStats: { ...finalStats } // Pass calculated final stats
+            talent: selectedTalent,
+            finalStats: { ...finalStats }
         };
         onCharacterCreate(characterDetails, false);
     };
@@ -214,7 +237,7 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
                         <div className="space-y-6 bg-gray-800/30 p-6 rounded-lg border border-gray-700">
                            {/* Name Input */}
                            <div>
-                                <label htmlFor="name" className="text-lg font-bold text-gray-300 mb-3 flex items-center gap-2"><IconUser/> Tên Nhân Vật</label>
+                                <h3 className="text-lg font-bold text-gray-300 mb-3 flex items-center gap-2"><IconUser/> Tên Nhân Vật</h3>
                                 <input
                                     id="name"
                                     type="text"
@@ -226,32 +249,8 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
                                 />
                             </div>
 
-                            {/* Bio Input */}
+                            {/* Origin Selection */}
                             <div>
-                                <label htmlFor="bio" className="text-lg font-bold text-gray-300 mb-3 flex items-center gap-2"><IconBookOpen /> Tiểu Sử</label>
-                                <div className="relative">
-                                    <textarea
-                                        id="bio"
-                                        value={bio}
-                                        onChange={(e) => setBio(e.target.value)}
-                                        rows={4}
-                                        className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                                        placeholder="Những mảnh vỡ của một cuộc đời đã qua..."
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleRandomBio}
-                                        disabled={isBioLoading || !selectedOrigin || !selectedPersonality || !activeApiKey}
-                                        className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xs font-bold py-1 px-2 rounded-md transition-colors"
-                                        title={!selectedOrigin || !selectedPersonality ? "Chọn Nguồn Gốc và Tính cách trước" : "Tạo tiểu sử ngẫu nhiên bằng AI"}
-                                    >
-                                        {isBioLoading ? <IconSpinner /> : <IconShuffle className="w-4 h-4" />} Ngẫu nhiên
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Selections */}
-                             <div>
                                 <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${!selectedOrigin ? 'text-red-500 animate-pulse' : ''}`}><IconUsers/> Nguồn Gốc</h3>
                                 <div className={`grid grid-cols-2 md:grid-cols-3 gap-3`}>
                                     {(Object.keys(ORIGINS) as Origin[]).map((item) => (
@@ -271,7 +270,38 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
                                     </div>
                                 )}
                             </div>
-                             <SelectionGrid title="Giới Tính" icon={<IconUser/>} items={Object.keys(GENDERS)} selectedItem={selectedGender} onSelect={item => setSelectedGender(item)} errorCondition={!selectedGender} />
+
+                             {/* Talent Selection */}
+                            {selectedOrigin && (
+                                <div className="animate-fadeIn">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className={`text-lg font-bold text-gray-300 flex items-center gap-2 ${!selectedTalent ? 'text-red-500 animate-pulse' : ''}`}><IconGift /> Thiên Phú</h3>
+                                        <button type="button" onClick={handleRerollTalents} className="flex items-center gap-1.5 bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold py-1 px-2 rounded-md transition-colors">
+                                            <IconShuffle className="w-4 h-4" /> Xáo lại
+                                        </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {proposedTalents.map((talent) => (
+                                            <button
+                                                key={talent.id}
+                                                type="button"
+                                                onClick={() => setSelectedTalent(talent.id)}
+                                                className={`w-full p-3 border-2 rounded-lg text-left transition-all duration-200 ${selectedTalent === talent.id ? 'bg-yellow-800/40 border-yellow-500 scale-105' : 'bg-gray-700/50 border-gray-600'} hover:border-yellow-600 hover:bg-gray-700`}
+                                            >
+                                                <p className="font-bold">{talent.name}</p>
+                                                <p className="text-sm text-gray-400">{talent.description}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <SelectionGrid title="Giới Tính" icon={<IconUser/>} items={Object.keys(GENDERS)} selectedItem={selectedGender} onSelect={item => setSelectedGender(item)} errorCondition={!selectedGender} />
+                            
+                        </div>
+
+                        {/* ----- Right Column: Difficulty, Stats, etc. ----- */}
+                        <div className="space-y-6 bg-gray-800/30 p-6 rounded-lg border border-gray-700">
                              <div>
                                 <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${!selectedPersonality ? 'text-red-500 animate-pulse' : ''}`}><IconSmile/> Tính Cách</h3>
                                 <div className={`grid grid-cols-2 md:grid-cols-3 gap-3`}>
@@ -294,11 +324,31 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
                                     </div>
                                 )}
                             </div>
-                             <SelectionGrid title="Mục Tiêu" icon={<IconCompass/>} items={GOALS} selectedItem={selectedGoal} onSelect={item => setSelectedGoal(item)} errorCondition={false} />
-                        </div>
+                            
+                             {/* Bio Input */}
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-300 mb-3 flex items-center gap-2"><IconBookOpen /> Tiểu Sử</h3>
+                                <div className="relative">
+                                    <textarea
+                                        id="bio"
+                                        value={bio}
+                                        onChange={(e) => setBio(e.target.value)}
+                                        rows={3}
+                                        className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                                        placeholder="Những mảnh vỡ của một cuộc đời đã qua..."
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleRandomBio}
+                                        disabled={isBioLoading || !selectedOrigin || !selectedPersonality || !activeApiKey}
+                                        className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xs font-bold py-1 px-2 rounded-md transition-colors"
+                                        title={!selectedOrigin || !selectedPersonality ? "Chọn Nguồn Gốc và Tính cách trước" : "Tạo tiểu sử ngẫu nhiên bằng AI"}
+                                    >
+                                        {isBioLoading ? <IconSpinner /> : <IconShuffle className="w-4 h-4" />} Ngẫu nhiên
+                                    </button>
+                                </div>
+                            </div>
 
-                        {/* ----- Right Column: Difficulty, Stats ----- */}
-                        <div className="space-y-6 bg-gray-800/30 p-6 rounded-lg border border-gray-700">
                              <div>
                                 <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${!selectedDifficulty ? 'text-red-500 animate-pulse' : ''}`}><IconShield/> Độ Khó</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

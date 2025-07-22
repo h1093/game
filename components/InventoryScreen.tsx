@@ -79,7 +79,7 @@ const InventoryScreen: React.FC<InventoryScreenProps> = ({ isOpen, onClose, play
                     
                     {activeTab === 'inventory' && <InventoryPanel playerState={playerState} onUseItem={onUseItem} />}
                     {activeTab === 'skills' && <SkillBookPanel playerState={playerState} onUseSkill={onUseSkill} isLoading={isLoading} />}
-                    {activeTab === 'proficiency' && <ProficiencyPanel proficiency={playerState.proficiency} />}
+                    {activeTab === 'proficiency' && <ProficiencyPanel proficiency={playerState.proficiency} origin={playerState.origin} />}
                     {activeTab === 'quests' && <QuestLogPanel quests={playerState.quests} />}
                     {activeTab === 'log' && <LogPanel logEntries={log} />}
                 </div>

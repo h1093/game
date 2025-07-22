@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GameState, PlayerState, GameData, Choice, Origin, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary, Enemy, NPC } from './types';
-import { INITIAL_PLAYER_STATE, GAME_TITLE, ORIGINS, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY, DYNAMIC_WORLD_EVENT_TURN_MIN, DYNAMIC_WORLD_EVENT_TURN_MAX, BASE_STATS_BEFORE_POINT_BUY, OUTER_GODS, PERSONALITIES } from './constants';
+import { INITIAL_PLAYER_STATE, GAME_TITLE, ORIGINS, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY, DYNAMIC_WORLD_EVENT_TURN_MIN, DYNAMIC_WORLD_EVENT_TURN_MAX, BASE_STATS_BEFORE_POINT_BUY, OUTER_GODS, PERSONALITIES, ALL_TALENTS_MAP } from './constants';
 import { GameAIService } from './services/geminiService';
 import NarrativePanel from './components/NarrativePanel';
 import CombatPanel from './components/CombatPanel';
@@ -167,6 +167,21 @@ const App: React.FC = () => {
         let newMaxHunger = currentState.baseMaxHunger;
         let newMaxThirst = currentState.baseMaxThirst;
         
+        // Talent effects
+        const talentId = currentState.talent;
+        if (talentId) {
+            const talentData = ALL_TALENTS_MAP.get(talentId);
+            if (talentData?.effects) {
+                newAttack += talentData.effects.baseAttack || 0;
+                newDefense += talentData.effects.baseDefense || 0;
+                newCharisma += talentData.effects.baseCharisma || 0;
+                newMaxHp += talentData.effects.baseMaxHp || 0;
+                newMaxStamina += talentData.effects.baseMaxStamina || 0;
+                newMaxMana += talentData.effects.baseMaxMana || 0;
+                newMaxSanity += talentData.effects.baseMaxSanity || 0;
+            }
+        }
+
         // Personality base stat effects
         const personality = currentState.personality ? PERSONALITIES[currentState.personality] : null;
         if (personality) {
@@ -347,6 +362,7 @@ const App: React.FC = () => {
                     loadedGameState.isCreatorsWillActive = loadedGameState.isCreatorsWillActive || false;
                     loadedPlayerState.outerGodMark = loadedPlayerState.outerGodMark || null;
                     loadedPlayerState.godFragments = loadedPlayerState.godFragments || 0;
+                    loadedPlayerState.talent = loadedPlayerState.talent || null;
 
 
                     setPlayerState(recalculateStats(loadedPlayerState));
@@ -810,7 +826,7 @@ const App: React.FC = () => {
         }
 
         try {
-            const { text: response, tokenCount } = await gameAIService.current.sendAction(finalPrompt);
+            const { text: response, tokenCount } = await gameAIService.current.sendAction(finalPrompt, playerStateRef.current);
             setLastTurnTokenUsage(tokenCount);
             let gameData: GameData;
 
@@ -860,7 +876,7 @@ const App: React.FC = () => {
         }
 
         try {
-            const { text: response, tokenCount } = await gameAIService.current.sendAction(prompt);
+            const { text: response, tokenCount } = await gameAIService.current.sendAction(prompt, playerStateRef.current);
             setLastTurnTokenUsage(tokenCount);
             let gameData: GameData;
 
@@ -934,7 +950,7 @@ const App: React.FC = () => {
         }
 
         try {
-            const { text: response, tokenCount } = await gameAIService.current.sendAction(prompt);
+            const { text: response, tokenCount } = await gameAIService.current.sendAction(prompt, playerStateRef.current);
             setLastTurnTokenUsage(tokenCount);
             let gameData: GameData;
 
@@ -1112,9 +1128,9 @@ const App: React.FC = () => {
     }, [setIsNewGameConfirmOpen]);
 
     const handleCharacterCreation = useCallback((details: {
-        name: string; bio: string; origin: Origin; difficulty: Difficulty; gender: Gender; personality: string; goal: string; finalStats: Record<keyof PlayerState, number>
+        name: string; bio: string; origin: Origin; difficulty: Difficulty; gender: Gender; personality: string; goal: string; talent: string; finalStats: Record<keyof PlayerState, number>
     }, isCreatorsWill = false) => {
-        const { name, bio, origin, difficulty, gender, personality, goal, finalStats } = details;
+        const { name, bio, origin, difficulty, gender, personality, goal, talent, finalStats } = details;
         
         const originData = ORIGINS[origin];
         const newProficiency = {...INITIAL_PLAYER_STATE.proficiency};
@@ -1131,6 +1147,7 @@ const App: React.FC = () => {
             gender,
             personality,
             goal,
+            talent,
             baseAttack: finalStats.baseAttack,
             baseDefense: finalStats.baseDefense,
             baseCharisma: finalStats.baseCharisma,
@@ -1150,6 +1167,20 @@ const App: React.FC = () => {
             const { part, level } = personalityData.effects.mechanics.initialInjury;
             baseState.bodyStatus[part] = level;
         }
+
+        // Process starting equipment
+        const startingItems = originData.startingEquipment || [];
+        const newInventory = [...baseState.inventory];
+        const newEquipment = {...baseState.equipment};
+        startingItems.forEach(item => {
+            if (item.equipmentSlot && !newEquipment[item.equipmentSlot]) {
+                newEquipment[item.equipmentSlot] = item;
+            } else {
+                newInventory.push(item);
+            }
+        });
+        baseState.inventory = newInventory;
+        baseState.equipment = newEquipment;
         
         setPlayerState(recalculateStats(baseState));
         setLastTurnTokenUsage(0);
@@ -1187,7 +1218,9 @@ const App: React.FC = () => {
                     }
                     
                     // Construct the initial prompt using the latest player state from the ref.
-                    const { name, origin, gender, personality, goal, bio } = playerStateRef.current;
+                    const { name, origin, gender, personality, goal, bio, talent } = playerStateRef.current;
+                    const talentName = talent ? ALL_TALENTS_MAP.get(talent)?.name : 'Không có';
+
                     const goalPrompt = goal
                         ? `và mục tiêu chính của họ là "${goal}"`
                         : "và họ đang tìm kiếm mục tiêu cho mình trong thế giới hoang tàn này";
@@ -1195,7 +1228,7 @@ const App: React.FC = () => {
                         ? 'Bắt đầu câu chuyện dựa trên bối cảnh tùy chỉnh đã được cung cấp trong system prompt.'
                         : 'Tôi tỉnh dậy trong một tàn tích hoang vắng.';
 
-                    const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${gender} có nguồn gốc là "${origin}". Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". ${startingLocationPrompt} Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
+                    const initialPrompt = `Bắt đầu một câu chuyện mới. Nhân vật của tôi tên là ${name}, một ${gender} có nguồn gốc là "${origin}" và có thiên phú là "${talentName}". Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". ${startingLocationPrompt} Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Trang bị khởi đầu đã được xử lý.`;
 
                     // Explicitly create the service here to avoid race conditions.
                     const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent, gameState.customJourneyPrompt, gameState.isCreatorsWillActive);
@@ -1406,7 +1439,7 @@ const App: React.FC = () => {
                     gameAIService.current = service;
                     addLogEntry(`Dịch vụ AI được khởi tạo cho Chế độ Thử nghiệm Chiến đấu.`);
 
-                    const { text: response, tokenCount } = await service.sendAction(initialPrompt);
+                    const { text: response, tokenCount } = await service.sendAction(initialPrompt, playerStateRef.current);
                     setLastTurnTokenUsage(tokenCount);
                     let gameData: GameData;
 

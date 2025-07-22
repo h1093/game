@@ -141,6 +141,7 @@ export interface PlayerState {
     reputation: number; // Điểm uy tín
     appearance: Appearance; // Vẻ ngoài
     sanctuaries: Sanctuary[];
+    talent: string | null; // ID của thiên phú đã chọn
 }
 
 export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY' | 'CUSTOM_JOURNEY' | 'CREATORS_WILL_SETUP';

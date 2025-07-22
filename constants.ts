@@ -1,6 +1,6 @@
 
 
-import { PlayerState, Origin, Difficulty, Gender, WeaponType, BodyPart, OuterGodMark } from './types';
+import { PlayerState, Origin, Difficulty, Gender, WeaponType, BodyPart, OuterGodMark, Item } from './types';
 
 export const SAVE_KEY = "darkFantasyRPGSaveData";
 export const API_KEYS_STORAGE_KEY = "darkFantasyApiKeys";
@@ -87,7 +87,44 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
     reputation: 0,
     appearance: 'DIRTY',
     sanctuaries: [],
+    talent: null,
 };
+
+type Talent = {
+    id: string;
+    name: string;
+    description: string;
+    effects: { [key: string]: number };
+};
+
+export const TALENTS: Record<Origin, Talent[]> = {
+  'Cựu Vệ Binh': [
+    { id: 'veterans_grit', name: 'Sự Gan Lì Cựu Binh', description: 'Kinh nghiệm chiến trường khắc sâu vào da thịt bạn. Tăng 10 Máu tối đa và 2 Phòng Thủ.', effects: { baseMaxHp: 10, baseDefense: 2 } },
+    { id: 'unwavering_focus', name: 'Sự Tập Trung Kiên Định', description: 'Kỷ luật thép cho phép bạn duy trì sự bình tĩnh. Tăng 10 Thể Lực tối đa và 10 Tâm Trí tối đa.', effects: { baseMaxStamina: 10, baseMaxSanity: 10 } },
+    { id: 'leader_aura', name: 'Hào Quang Lãnh Đạo', description: 'Bạn toát ra một khí chất đáng tin cậy, ngay cả trong tuyệt vọng. Tăng 3 Sức Hấp Dẫn.', effects: { baseCharisma: 3 } }
+  ],
+  'Kẻ Trộm Vặt': [
+    { id: 'nimble_fingers_rework', name: 'Ngón Tay Nhanh Nhẹn', description: 'Đôi tay nhanh nhẹn giúp bạn trong và ngoài chiến đấu. Tăng 2 Tấn Công và 10 Thể Lực tối đa.', effects: { baseAttack: 2, baseMaxStamina: 10 } },
+    { id: 'street_smarts', name: 'Sự Khôn Lỏi Đường Phố', description: 'Lớn lên trong những con hẻm đã dạy bạn cách đọc vị người khác. Tăng 3 Sức Hấp Dẫn.', effects: { baseCharisma: 3 } },
+    { id: 'shadow_step', name: 'Bước Chân Trong Bóng Tối', description: 'Bạn di chuyển nhẹ nhàng hơn bất kỳ ai. Tăng 10 Thể Lực tối đa và 2 Phòng Thủ.', effects: { baseMaxStamina: 10, baseDefense: 2 } }
+  ],
+  'Tập Sự Viện Hàn Lâm': [
+    { id: 'arcane_affinity', name: 'Thiên Phú Huyền Bí', description: 'Dòng chảy ma thuật đến với bạn một cách tự nhiên. Tăng 15 Mana tối đa và 1 Tấn Công.', effects: { baseMaxMana: 15, baseAttack: 1 } },
+    { id: 'eidetic_memory', name: 'Trí Nhớ Siêu Phàm', description: 'Tâm trí bạn là một kho lưu trữ kiến thức. Tăng 15 Tâm Trí tối đa.', effects: { baseMaxSanity: 15 } },
+    { id: 'alchemical_touch_rework', name: 'Chạm Tay Giả Kim', description: 'Bạn có hiểu biết bẩm sinh về các loại thuốc. Tăng 10 Máu tối đa và 5 Mana tối đa.', effects: { baseMaxHp: 10, baseMaxMana: 5 } }
+  ],
+  'Người Sống Sót': [
+    { id: 'scavenger_luck', name: 'Vận May Kẻ Nhặt Rác', description: 'Bạn có con mắt tinh tường để tìm những thứ hữu ích. Tăng 10 Thể Lực tối đa và 5 Máu tối đa.', effects: { baseMaxStamina: 10, baseMaxHp: 5 } },
+    { id: 'iron_stomach_rework', name: 'Dạ Dày Sắt', description: 'Cơ thể bạn đã quen với sự thiếu thốn. Tăng 15 Máu tối đa.', effects: { baseMaxHp: 15 } },
+    { id: 'sixth_sense', name: 'Giác Quan Thứ Sáu', description: 'Bạn có một cảm giác bất an khi nguy hiểm cận kề. Tăng 10 Tâm Trí tối đa và 2 Phòng Thủ.', effects: { baseMaxSanity: 10, baseDefense: 2 } }
+  ]
+};
+
+// Helper map for easy lookup
+export const ALL_TALENTS_MAP = new Map<string, Talent>(
+    Object.values(TALENTS).flat().map(talent => [talent.id, talent])
+);
+
 
 export const ORIGINS: Record<Origin, {
     name: string;
@@ -101,27 +138,44 @@ export const ORIGINS: Record<Origin, {
         baseMaxSanity?: number;
         baseCharisma?: number;
         startingProficiency?: { type: WeaponType, xp: number };
-    }
+    };
+    startingEquipment: Item[];
 }> = {
   'Cựu Vệ Binh': {
     name: "Cựu Vệ Binh",
     description: "Từng là một phần của bức tường khiên bảo vệ một thành phố đã mất, giờ đây bạn lang thang với những ký ức về kỷ luật và thép.",
-    bonuses: { baseAttack: 2, baseDefense: 3, baseMaxHp: 10, startingProficiency: { type: 'SWORD', xp: 25 } }
+    bonuses: { baseAttack: 2, baseDefense: 3, baseMaxHp: 10, startingProficiency: { type: 'SWORD', xp: 25 } },
+    startingEquipment: [
+        { id: 'start_sword_1', name: 'Kiếm Ngắn Cũ', description: 'Một thanh kiếm đáng tin cậy đã chứng kiến nhiều trận chiến.', type: 'WEAPON', equipmentSlot: 'weapon', weaponType: 'SWORD', effect: { attack: 2 } },
+        { id: 'start_leather_1', name: 'Áo Da Sờn', description: 'Miếng da cứng đã cứu bạn nhiều lần.', type: 'ARMOR', equipmentSlot: 'armor', effect: { defense: 1 } }
+    ]
   },
   'Kẻ Trộm Vặt': {
     name: "Kẻ Trộm Vặt",
     description: "Lớn lên trong những con hẻm tối tăm, đôi tay của bạn nhanh nhẹn và đôi mắt của bạn nhìn thấy những gì người khác bỏ lỡ.",
-    bonuses: { baseMaxStamina: 15, baseCharisma: 2, startingProficiency: { type: 'DAGGER', xp: 25 } }
+    bonuses: { baseMaxStamina: 15, baseCharisma: 2, startingProficiency: { type: 'DAGGER', xp: 25 } },
+    startingEquipment: [
+        { id: 'start_dagger_1', name: 'Dao Găm Gỉ Sét', description: 'Một lưỡi dao nhanh và lặng lẽ, hoàn hảo cho những công việc mờ ám.', type: 'WEAPON', equipmentSlot: 'weapon', weaponType: 'DAGGER', effect: { attack: 1 } },
+        { id: 'start_bread_1', name: 'Mẩu Bánh Mì Cũ', description: 'Không nhiều, nhưng đủ để lót dạ.', type: 'POTION', effect: { hunger: 15 } }
+    ]
   },
   'Tập Sự Viện Hàn Lâm': {
     name: "Tập Sự Viện Hàn Lâm",
     description: "Bạn đã thoáng thấy những bí mật bị cấm đoán trong các thư viện bụi bặm trước khi mọi thứ sụp đổ. Kiến thức vẫn còn đó, chờ được sử dụng.",
-    bonuses: { baseMaxMana: 20, baseMaxSanity: 10, startingProficiency: { type: 'STAFF', xp: 25 } }
+    bonuses: { baseMaxMana: 20, baseMaxSanity: 10, startingProficiency: { type: 'STAFF', xp: 25 } },
+     startingEquipment: [
+        { id: 'start_staff_1', name: 'Gậy Gỗ Tập Sự', description: 'Một cây gậy đơn giản được khắc những ký hiệu cơ bản, tỏa ra năng lượng yếu ớt.', type: 'WEAPON', equipmentSlot: 'weapon', weaponType: 'STAFF', effect: { attack: 1, maxMana: 5 } },
+        { id: 'start_potion_1', name: 'Thuốc Hồi Phục Yếu', description: 'Một dung dịch màu đỏ nhạt, có vị như kim loại.', type: 'POTION', effect: { hp: 20 } }
+    ]
   },
   'Người Sống Sót': {
     name: "Người Sống Sót",
     description: "Bạn không có quá khứ huy hoàng hay kỹ năng đặc biệt. Bạn chỉ đơn giản là đã sống sót ở nơi người khác đã chết, nhờ vào sự may mắn và một ý chí sắt đá.",
-    bonuses: { baseMaxHp: 5, baseMaxStamina: 5, baseMaxSanity: 5 }
+    bonuses: { baseMaxHp: 5, baseMaxStamina: 5, baseMaxSanity: 5 },
+    startingEquipment: [
+        { id: 'start_jerky_1', name: 'Thịt Khô Mốc', description: 'Mùi vị thật kinh khủng, nhưng nó là thức ăn.', type: 'POTION', effect: { hunger: 20, sanity: -2 } },
+        { id: 'start_bandage_1', name: 'Băng Gạc Bẩn', description: 'Tốt hơn là không có gì.', type: 'POTION', effect: { hp: 10 } }
+    ]
   }
 };
 

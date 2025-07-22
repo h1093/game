@@ -1,7 +1,8 @@
 
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { Difficulty, Appearance, OuterGodMark } from '../types';
+import { Difficulty, PlayerState } from '../types';
+import { ALL_TALENTS_MAP, OUTER_GODS } from '../constants';
 
 export interface SendActionResult {
     text: string;
@@ -206,8 +207,13 @@ QUY TẮC CỐT LÕI VỀ GAMEPLAY & CÂU CHUYỆN:
 1.  **Thế Giới Là Kẻ Thù**: Luôn mô tả môi trường một cách chi tiết và đầy không khí. Sử dụng tất cả các giác quan: âm thanh, mùi vị, cảm giác. Thế giới phải cảm thấy cổ xưa, nguy hiểm và đầy rẫy những tàn tích của những câu chuyện đã mất. Đừng tạo ra những "căn phòng" trống rỗng. Mỗi địa điểm đều có lịch sử. Luôn có thứ gì đó để xem, nghe, hoặc sợ hãi.
 2.  **Hiển Thị, Đừng Kể Lể**: Thay vì nói "căn phòng này đáng sợ", hãy mô tả "những hình bóng méo mó nhảy múa trên tường từ ánh sáng leo lét của một ngọn nến sắp tàn, và không khí đặc quánh mùi hôi thối của sự mục rữa và nỗi sợ hãi cũ kỹ."
 3.  **Hậu Quả Là Vua**: Mọi hành động đều có phản ứng. Lựa chọn phải có trọng lượng. Không có quyết định nào là hoàn toàn "tốt" hoặc "xấu". Chỉ có sự sống còn và cái giá phải trả.
-4.  **Tôn Trọng Trạng Thái Người Chơi**: Luôn xem xét các chỉ số của người chơi (Tâm trí, Uy tín, trạng thái cơ thể, các ấn ký đang có, v.v.) khi tạo ra câu chuyện và các lựa chọn. Một nhân vật có Tâm trí thấp sẽ nhìn thế giới khác với một người tỉnh táo.
+4.  **Tôn Trọng Trạng Thái Người Chơi**: Luôn xem xét các chỉ số và trạng thái của người chơi (Tâm trí, Uy tín, Thiên phú, các ấn ký, v.v.) khi tạo ra câu chuyện và các lựa chọn. Một nhân vật có Tâm trí thấp sẽ nhìn thế giới khác với một người tỉnh táo.
 5.  **Ngôn Ngữ Tự Nhiên**: Tránh các thuật ngữ "game" như "bạn nhận được 5 XP". Thay vào đó: "Bạn cảm thấy kỹ năng của mình với thanh kiếm trở nên sắc bén hơn một chút sau cuộc chiến."
+
+QUY TẮC VỀ THIÊN PHÚ:
+- Người chơi có một thiên phú đặc biệt (được cung cấp trong prompt). Bạn PHẢI xem xét thiên phú này khi tạo ra câu chuyện.
+- Ví dụ, một nhân vật có "Giác Quan Thứ Sáu" có thể nhận được những lời cảnh báo mơ hồ về một cuộc phục kích sắp xảy ra hoặc nhận thấy những chi tiết mà người khác bỏ lỡ. Một nhân vật có "Hào Quang Lãnh Đạo" có thể thấy NPC dễ tiếp thu hơn.
+- Hãy tích hợp điều này một cách tinh tế vào 'narrative' hoặc các 'choices' bạn cung cấp.
 
 QUY TẮC VỀ TÍNH CÁCH NHÂN VẬT:
 Tính cách của người chơi không chỉ là một vai trò, nó là một bộ quy tắc cơ học và tường thuật. Luôn luôn tôn trọng những điều này.
@@ -308,14 +314,31 @@ BỐI CẢNH MẶC ĐỊNH: Thế giới là một vùng đất chết đang h�
 
     }
 
-    async sendAction(prompt: string): Promise<SendActionResult> {
+    async sendAction(prompt: string, playerState?: PlayerState): Promise<SendActionResult> {
+        let finalPrompt = prompt;
+
+        if (playerState) {
+            finalPrompt = `
+---
+BỐI CẢNH NGƯỜI CHƠI HIỆN TẠI (ĐỂ THAM KHẢO):
+- Trạng thái: HP ${playerState.hp}/${playerState.maxHp}, Thể lực ${playerState.stamina}/${playerState.maxStamina}, Tâm trí ${playerState.sanity}/${playerState.maxSanity}
+- Đặc điểm: Nguồn gốc '${playerState.origin}', Tính cách '${playerState.personality}'
+- Thiên phú: ${playerState.talent ? (ALL_TALENTS_MAP.get(playerState.talent)?.name || 'Không rõ') : 'Không có'}
+- Ấn ký: ${playerState.outerGodMark ? OUTER_GODS[playerState.outerGodMark].markName : 'Không có'}
+- Mảnh vỡ Thần thánh: ${playerState.godFragments}
+---
+HÀNH ĐỘNG CỦA NGƯỜI CHƠI:
+${prompt}
+            `;
+        }
+
         try {
             const result = await this.ai.models.generateContent({
                 model: "gemini-2.5-flash",
                 contents: [
                     {
                         role: 'user',
-                        parts: [{ text: prompt }]
+                        parts: [{ text: finalPrompt }]
                     }
                 ],
                 config: {

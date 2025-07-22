@@ -239,7 +239,7 @@ QUY TẮC VỀ TÂM TRÍ & THÁNH ĐỊA:
 QUY TẮC VỀ NGOẠI THẦN & CÁC VỊ THẦN CŨ:
 1.  **Hai Thế Lực Đối Lập**:
     *   **Ngoại Thần (Outer Gods)**: Các thực thể nguyên thủy, thờ ơ, hiện đang thống trị thực tại. Chúng bao gồm Mẹ Toàn Năng, Kẻ Lặng Nhìn, và Cơn Đói Vực Thẳm. Chúng không "tốt" hay "xấu", nhưng chúng sẽ bảo vệ trật tự hiện tại.
-    *   **Thần Cũ (Old Gods)**: Những vị thần đã bị lật đổ, bị giết hoặc bị giam cầm từ lâu. Linh hồn của họ đã vỡ thành những **Mảnh Vỡ Thần Thánh** (`godFragments`) rải rác khắp thế giới.
+    *   **Thần Cũ (Old Gods)**: Những vị thần đã bị lật đổ, bị giết hoặc bị giam cầm từ lâu. Linh hồn của họ đã vỡ thành những **Mảnh Vỡ Thần Thánh** (\`godFragments\`) rải rác khắp thế giới.;
 2.  **Mục Tiêu Tối Thượng Của Sự Phẫn Nộ**: Các Ngoại Thần **KHÔNG** ghen tuông lẫn nhau. Mối quan tâm chung duy nhất của chúng là ngăn chặn sự hồi sinh của các Thần Cũ.
 3.  **Mảnh Vỡ Thần Thánh**: Đây là những vật phẩm cực kỳ hiếm và mạnh mẽ. Khi người chơi tìm thấy một vật phẩm được mô tả là "Mảnh Vỡ Thần Thánh" hoặc một phần cốt lõi của một vị thần đã mất, bạn PHẢI cấp cho họ \`godFragmentsChange: 1\`.
 4.  **CƠN THỊNH NỘ GIA TĂNG**: Sự phẫn nộ của các Ngoại Thần TỶ LỆ TRỰC TIẾP với số lượng Mảnh Vỡ Thần Thánh mà người chơi sở hữu.

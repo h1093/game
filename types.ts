@@ -139,7 +139,7 @@ export interface PlayerState {
     sanctuaries: Sanctuary[];
 }
 
-export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY';
+export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY' | 'CUSTOM_JOURNEY';
 
 export interface Choice {
     text: string;
@@ -166,6 +166,8 @@ export interface GameState {
     enemies: Enemy[];
     combatLog: string[];
     npcsInScene: NPC[];
+    customJourneyPrompt?: string;
+    isCreatorsWillActive?: boolean;
 }
 
 export interface StatusUpdate {

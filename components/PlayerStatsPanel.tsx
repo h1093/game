@@ -87,8 +87,13 @@ const IconShirt = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>
 );
 
+const IconCpu = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+);
+
 interface PlayerStatsPanelProps {
     playerState: PlayerState;
+    lastTurnTokenUsage: number;
 }
 
 const StatBar = ({ label, icon, value, max, percentage, colorClass }: { label: string, icon: React.ReactNode, value: number, max: number, percentage: number, colorClass: string }) => (
@@ -135,7 +140,7 @@ const getAppearanceText = (appearance: Appearance): string => {
     }
 };
 
-const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState }) => {
+const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState, lastTurnTokenUsage }) => {
     const hpPercentage = playerState.maxHp > 0 ? Math.min(100, (playerState.hp / playerState.maxHp) * 100) : 0;
     const staminaPercentage = playerState.maxStamina > 0 ? Math.min(100, (playerState.stamina / playerState.maxStamina) * 100) : 0;
     const manaPercentage = playerState.maxMana > 0 ? Math.min(100, (playerState.mana / playerState.maxMana) * 100) : 0;
@@ -206,6 +211,12 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState }) => {
                         <span className="font-bold text-gray-300 flex items-center gap-2"><IconShirt/> Diện Mạo</span>
                         <span className="font-semibold text-gray-200">{getAppearanceText(playerState.appearance)}</span>
                     </div>
+                    {lastTurnTokenUsage > 0 && (
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="font-bold text-gray-300 flex items-center gap-2"><IconCpu className="w-4 h-4 text-gray-400" /> Tokens Lượt Trước</span>
+                            <span className="font-mono text-gray-200 font-bold">{lastTurnTokenUsage.toLocaleString()}</span>
+                        </div>
+                    )}
                  </div>
             </div>
         </div>

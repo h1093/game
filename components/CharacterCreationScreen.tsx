@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { CharacterClass, Difficulty, Gender } from '../types';
@@ -42,9 +41,13 @@ const IconCompass = (props: React.SVGProps<SVGSVGElement>) => (
 const IconX = ({ size, ...props }: React.SVGProps<SVGSVGElement> & { size: number }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
 );
+const IconEye = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+);
+
 
 interface CharacterCreationScreenProps {
-    onCharacterCreate: (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => void;
+    onCharacterCreate: (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }, isCreatorsWill?: boolean) => void;
     activeApiKey: string | undefined;
 }
 
@@ -81,7 +84,24 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
             setError('Bạn phải chọn một độ khó cho cuộc phiêu lưu.');
             return;
         }
-        onCharacterCreate({ name, bio, characterClass: selectedClass, difficulty: selectedDifficulty, gender: selectedGender, personality: selectedPersonality, goal: selectedGoal });
+        onCharacterCreate({ name, bio, characterClass: selectedClass, difficulty: selectedDifficulty, gender: selectedGender, personality: selectedPersonality, goal: selectedGoal }, false);
+    };
+
+    const handleCreatorsWillSubmit = () => {
+        const randomClasses = Object.keys(CLASSES) as CharacterClass[];
+        const randomGenders = Object.values(GENDERS);
+
+        const characterDetails = {
+            name: 'Kẻ Bị Nguyền Rủa',
+            bio: 'Một linh hồn trống rỗng được ném vào thế giới này như một trò đùa độc ác của đấng sáng tạo. Không có hy vọng, không có mục đích, chỉ có sự đau khổ vô tận đang chờ đợi.',
+            characterClass: randomClasses[Math.floor(Math.random() * randomClasses.length)],
+            difficulty: 'Địa Ngục' as Difficulty,
+            gender: randomGenders[Math.floor(Math.random() * randomGenders.length)] as Gender,
+            personality: 'Tự Hủy Hoại',
+            goal: 'Tìm kiếm sự kết thúc',
+        };
+        
+        onCharacterCreate(characterDetails, true);
     };
 
     const handleRandomBio = async () => {
@@ -283,13 +303,21 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
                     
                     {error && <p className="text-red-500 text-center font-bold animate-pulse">{error}</p>}
 
-                    <div className="pt-4 text-center">
+                    <div className="pt-4 text-center flex justify-center items-center gap-4 flex-wrap">
                         <button
                             type="submit"
                             disabled={!name || !selectedClass || !selectedDifficulty || !selectedGender || !selectedPersonality}
                             className="bg-red-700 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-10 rounded-lg text-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none shadow-[0_0_20px_rgba(220,38,38,0.7)]"
                         >
                             Bắt Đầu Hành Trình
+                        </button>
+                         <button
+                            type="button"
+                            onClick={handleCreatorsWillSubmit}
+                            className="flex items-center gap-2 bg-black hover:bg-purple-900/50 border-2 border-purple-600 text-purple-400 font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
+                            title="Thách thức các quy tắc của chính Vực Thẳm. Quyền năng và sự tuyệt vọng đang chờ đợi."
+                        >
+                            <IconEye /> Ý Chí Sáng Thế
                         </button>
                     </div>
                 </form>

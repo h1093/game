@@ -13,7 +13,7 @@ import InventoryScreen from './components/InventoryScreen';
 import EquipmentScreen from './components/EquipmentScreen';
 import InfoTabsPanel from './components/InfoTabsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
-import ArtPanel from './components/ArtPanel';
+import CustomJourneyScreen from './components/CustomJourneyScreen';
 
 // SVG Icons
 const IconInventory = (props: React.SVGProps<SVGSVGElement>) => (
@@ -57,6 +57,8 @@ const App: React.FC = () => {
         enemies: [],
         combatLog: [],
         npcsInScene: [],
+        customJourneyPrompt: '',
+        isCreatorsWillActive: false,
     });
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [notification, setNotification] = useState<string>('');
@@ -70,6 +72,7 @@ const App: React.FC = () => {
     const [saveFileExists, setSaveFileExists] = useState<boolean>(false);
     const [customActionInput, setCustomActionInput] = useState('');
     const [isCombatTestStarting, setIsCombatTestStarting] = useState<boolean>(false);
+    const [lastTurnTokenUsage, setLastTurnTokenUsage] = useState<number>(0);
     const gameAIService = useRef<GameAIService | null>(null);
     
     // API Key Management State
@@ -78,11 +81,6 @@ const App: React.FC = () => {
     const [userApiKeys, setUserApiKeys] = useState<string[]>([]);
     const [currentApiKeyIndex, setCurrentApiKeyIndex] = useState(0);
     const [activeApiKey, setActiveApiKey] = useState<string | undefined>(undefined);
-
-    // Art Generation State
-    const [artImageUrl, setArtImageUrl] = useState<string | null>(null);
-    const [isArtLoading, setIsArtLoading] = useState<boolean>(false);
-    const lastNarrativeForArt = useRef<string>('');
 
     // App settings
     const [isMatureContent, setIsMatureContent] = useState<boolean>(false);
@@ -144,7 +142,7 @@ const App: React.FC = () => {
             try {
                 // Do not re-initialize if it's the very first turn, as the story-start effect handles that.
                 if (gameState.turn > 0) {
-                    gameAIService.current = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent);
+                    gameAIService.current = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent, gameState.customJourneyPrompt, gameState.isCreatorsWillActive);
                     addLogEntry(`Dịch vụ AI được khởi tạo lại với nguồn ${apiSource === 'default' ? 'mặc định' : 'người dùng'}. Chế độ 18+ ${isMatureContent ? 'bật' : 'tắt'}.`);
                 }
             } catch (error) {
@@ -152,7 +150,7 @@ const App: React.FC = () => {
                 setNotification("Lỗi: Không thể khởi tạo dịch vụ AI. Vui lòng kiểm tra API key.");
             }
         }
-    }, [activeApiKey, gameState.difficulty, isMatureContent, apiSource, addLogEntry]);
+    }, [activeApiKey, gameState.difficulty, isMatureContent, apiSource, addLogEntry, gameState.customJourneyPrompt, gameState.isCreatorsWillActive]);
 
 
     const recalculateStats = useCallback((currentState: PlayerState): PlayerState => {
@@ -305,12 +303,13 @@ const App: React.FC = () => {
                      if (loadedGameState.npcsInScene === undefined) {
                         loadedGameState.npcsInScene = [];
                     }
-
-                    setArtImageUrl(null); // Clear previous art
-                    lastNarrativeForArt.current = '';
+                    // Compatibility for custom journey saves
+                    loadedGameState.customJourneyPrompt = loadedGameState.customJourneyPrompt || '';
+                    loadedGameState.isCreatorsWillActive = loadedGameState.isCreatorsWillActive || false;
 
                     setPlayerState(recalculateStats(loadedPlayerState));
                     setGameState(loadedGameState); // This will trigger the useEffect to create the AI service
+                    setLastTurnTokenUsage(0);
                     
                     const msg = "Đã tải lại trò chơi từ điểm lưu cuối cùng.";
                     setNotification(msg);
@@ -377,44 +376,6 @@ const App: React.FC = () => {
              addLogEntry(`Lỗi hệ thống: Không thể xử lý hành động do lỗi API. ${error}`);
         }
     }, [apiSource, userApiKeys, currentApiKeyIndex, addLogEntry, setNotification, setGameState, setCurrentApiKeyIndex]);
-
-    const handleGenerateArt = useCallback(async (narrative: string) => {
-        if (!gameAIService.current || !narrative || isArtLoading) {
-            return;
-        }
-
-        setIsArtLoading(true);
-        try {
-            // Use the first 2-3 sentences for a more focused prompt.
-            const shortNarrative = narrative.split('.').slice(0, 3).join('.').trim();
-            if(!shortNarrative) {
-                 setIsArtLoading(false);
-                 return;
-            }
-
-            const imageUrl = await gameAIService.current.generateImage(shortNarrative);
-            setArtImageUrl(imageUrl);
-        } catch (e) {
-            console.error("Lỗi khi tạo hình ảnh:", e);
-            addLogEntry("Không thể vẽ nên cơn ác mộng... (Lỗi tạo ảnh)");
-            setArtImageUrl(null);
-        } finally {
-            setIsArtLoading(false);
-        }
-    }, [addLogEntry, isArtLoading]);
-
-
-    useEffect(() => {
-        if (
-            gameState.narrative &&
-            gameState.narrative !== lastNarrativeForArt.current &&
-            !isLoading && // Wait for main game logic to finish loading
-            (gameState.phase === 'EXPLORING')
-        ) {
-            lastNarrativeForArt.current = gameState.narrative;
-            handleGenerateArt(gameState.narrative);
-        }
-    }, [gameState.narrative, isLoading, gameState.phase, handleGenerateArt]);
 
 
     const processGameData = useCallback((gameData: GameData, isDynamicEventTriggered?: boolean) => {
@@ -736,7 +697,8 @@ const App: React.FC = () => {
         }
 
         try {
-            const response = await gameAIService.current.sendAction(finalPrompt);
+            const { text: response, tokenCount } = await gameAIService.current.sendAction(finalPrompt);
+            setLastTurnTokenUsage(tokenCount);
             let gameData: GameData;
 
             try {
@@ -785,7 +747,8 @@ const App: React.FC = () => {
         }
 
         try {
-            const response = await gameAIService.current.sendAction(prompt);
+            const { text: response, tokenCount } = await gameAIService.current.sendAction(prompt);
+            setLastTurnTokenUsage(tokenCount);
             let gameData: GameData;
 
             try {
@@ -858,7 +821,8 @@ const App: React.FC = () => {
         }
 
         try {
-            const response = await gameAIService.current.sendAction(prompt);
+            const { text: response, tokenCount } = await gameAIService.current.sendAction(prompt);
+            setLastTurnTokenUsage(tokenCount);
             let gameData: GameData;
 
             try {
@@ -1011,11 +975,11 @@ const App: React.FC = () => {
         });
     }, [recalculateStats, addLogEntry, setPlayerState, setNotification]);
     
-    const handleStartGame = useCallback(() => {
-        if (saveFileExists) {
+    const handleStartGame = useCallback((journeyPrompt?: string) => {
+        if (saveFileExists && !journeyPrompt) {
             setIsNewGameConfirmOpen(true);
         } else {
-            setGameState(prevState => ({ ...prevState, phase: 'CHARACTER_CREATION' }));
+            setGameState(prevState => ({ ...prevState, phase: 'CHARACTER_CREATION', customJourneyPrompt: journeyPrompt || '' }));
         }
     }, [saveFileExists, setIsNewGameConfirmOpen, setGameState]);
     
@@ -1027,14 +991,14 @@ const App: React.FC = () => {
             console.error("Không thể xóa dữ liệu đã lưu:", e);
         }
         setIsNewGameConfirmOpen(false);
-        setGameState(prevState => ({ ...prevState, phase: 'CHARACTER_CREATION' }));
+        setGameState(prevState => ({ ...prevState, phase: 'CHARACTER_CREATION', customJourneyPrompt: '' }));
     }, [setIsNewGameConfirmOpen, setGameState, setSaveFileExists]);
 
     const handleCancelNewGame = useCallback(() => {
         setIsNewGameConfirmOpen(false);
     }, [setIsNewGameConfirmOpen]);
 
-    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }) => {
+    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }, isCreatorsWill = false) => {
         const { name, bio, characterClass, difficulty, gender, personality, goal } = details;
         
         const classData = CLASSES[characterClass];
@@ -1057,6 +1021,7 @@ const App: React.FC = () => {
         };
         
         setPlayerState(recalculateStats(baseState));
+        setLastTurnTokenUsage(0);
         setIsLoading(true);
         
         const firstEventTurn = DYNAMIC_WORLD_EVENT_TURN_MIN + Math.floor(Math.random() * (DYNAMIC_WORLD_EVENT_TURN_MAX - DYNAMIC_WORLD_EVENT_TURN_MIN + 1));
@@ -1073,6 +1038,7 @@ const App: React.FC = () => {
             enemies: [],
             combatLog: [],
             npcsInScene: [],
+            isCreatorsWillActive: isCreatorsWill,
         }));
     }, [recalculateStats, setPlayerState, setIsLoading, setGameState]);
 
@@ -1094,14 +1060,19 @@ const App: React.FC = () => {
                     const goalPrompt = goal
                         ? `và mục tiêu chính của họ là "${goal}"`
                         : "và họ đang tìm kiếm mục tiêu cho mình trong thế giới hoang tàn này";
-                    const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${characterClass} ${gender}. Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". Tôi tỉnh dậy trong một tàn tích hoang vắng. Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
+                    const startingLocationPrompt = gameState.customJourneyPrompt 
+                        ? 'Bắt đầu câu chuyện dựa trên bối cảnh tùy chỉnh đã được cung cấp trong system prompt.'
+                        : 'Tôi tỉnh dậy trong một tàn tích hoang vắng.';
+
+                    const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${characterClass} ${gender}. Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". ${startingLocationPrompt} Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
 
                     // Explicitly create the service here to avoid race conditions.
-                    const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent);
+                    const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent, gameState.customJourneyPrompt, gameState.isCreatorsWillActive);
                     gameAIService.current = service;
                     addLogEntry(`Dịch vụ AI được khởi tạo với nguồn ${apiSource === 'default' ? 'mặc định' : 'người dùng'}. Chế độ 18+ ${isMatureContent ? 'bật' : 'tắt'}.`);
 
-                    const response = await service.sendAction(initialPrompt);
+                    const { text: response, tokenCount } = await service.sendAction(initialPrompt);
+                    setLastTurnTokenUsage(tokenCount);
                     let gameData: GameData;
 
                     try {
@@ -1140,7 +1111,7 @@ const App: React.FC = () => {
         };
 
         startStory();
-    }, [gameState.phase, gameState.turn, gameState.difficulty, isLoading, activeApiKey, isMatureContent, apiSource, addLogEntry, processGameData, handleApiError]);
+    }, [gameState.phase, gameState.turn, gameState.difficulty, isLoading, activeApiKey, isMatureContent, apiSource, addLogEntry, processGameData, handleApiError, gameState.customJourneyPrompt, gameState.isCreatorsWillActive]);
 
 
     const restartGame = useCallback(() => {
@@ -1155,6 +1126,8 @@ const App: React.FC = () => {
             enemies: [],
             combatLog: [],
             npcsInScene: [],
+            customJourneyPrompt: '',
+            isCreatorsWillActive: false,
         });
         setLog([]);
         setIsInventoryOpen(false);
@@ -1162,19 +1135,18 @@ const App: React.FC = () => {
         setIsExitConfirmOpen(false);
         setIsNewGameConfirmOpen(false);
         setNotification('');
-        setArtImageUrl(null);
-        lastNarrativeForArt.current = '';
+        setLastTurnTokenUsage(0);
         gameAIService.current = null;
     }, [setPlayerState, setGameState, setLog, setIsInventoryOpen, setIsEquipmentOpen, setIsExitConfirmOpen, setIsNewGameConfirmOpen, setNotification]);
 
 
 
     const handleDeathAndRestart = useCallback(() => {
-        if (gameState.difficulty === 'Ác Mộng' || gameState.difficulty === 'Địa Ngục' || gameState.difficulty === 'Đày Đoạ') {
+        if (gameState.difficulty === 'Ác Mộng' || gameState.difficulty === 'Địa Ngục' || gameState.difficulty === 'Đày Đoạ' || gameState.isCreatorsWillActive) {
             try {
                 localStorage.removeItem(SAVE_KEY);
                 setSaveFileExists(false);
-                addLogEntry(`Tiến trình đã được xóa do nhân vật gục ngã trong chế độ ${gameState.difficulty}.`);
+                addLogEntry(`Tiến trình đã được xóa do nhân vật gục ngã trong chế độ ${gameState.isCreatorsWillActive ? 'Ý Chí Sáng Thế' : gameState.difficulty}.`);
             } catch (e) {
                 console.error("Không thể xóa dữ liệu đã lưu khi chết:", e);
             }
@@ -1182,7 +1154,7 @@ const App: React.FC = () => {
             addLogEntry("Bạn đã gục ngã. Tải lại trò chơi để tiếp tục từ điểm lưu cuối cùng của bạn.");
         }
         restartGame();
-    }, [restartGame, addLogEntry, setSaveFileExists, gameState.difficulty]);
+    }, [restartGame, addLogEntry, setSaveFileExists, gameState.difficulty, gameState.isCreatorsWillActive]);
 
     const handleRequestExit = useCallback(() => {
         setIsExitConfirmOpen(true);
@@ -1230,6 +1202,14 @@ const App: React.FC = () => {
             return newState;
         });
     }, [setNotification]);
+    
+    const handleStartCustomJourney = useCallback(() => {
+        setGameState(prevState => ({ ...prevState, phase: 'CUSTOM_JOURNEY' }));
+    }, []);
+
+    const handleJourneyCreate = useCallback((prompt: string) => {
+        setGameState(prevState => ({ ...prevState, phase: 'CHARACTER_CREATION', customJourneyPrompt: prompt }));
+    }, []);
 
     const handleStartCombatTest = useCallback(() => {
         const testPlayerClass: CharacterClass = 'Warrior';
@@ -1252,6 +1232,7 @@ const App: React.FC = () => {
             charisma: classData.stats.baseCharisma,
         };
         setPlayerState(recalculateStats(initialTestPlayerState));
+        setLastTurnTokenUsage(0);
         setIsLoading(true);
 
         const difficulty: Difficulty = 'Thử Thách';
@@ -1267,6 +1248,8 @@ const App: React.FC = () => {
             enemies: [],
             combatLog: [],
             npcsInScene: [],
+            customJourneyPrompt: '',
+            isCreatorsWillActive: false,
         });
 
         setIsCombatTestStarting(true);
@@ -1282,11 +1265,12 @@ const App: React.FC = () => {
 
                     const initialPrompt = `BẮT ĐẦU TRẬN CHIẾN THỬ NGHIỆM. Người chơi là một Chiến Binh. Tạo ra một kẻ thù (ví dụ: một con Ghoul hoặc Bộ Xương) với các bộ phận cơ thể và HP đầy đủ. Mô tả sự bắt đầu của trận chiến, tình trạng của kẻ thù và đưa ra các lựa chọn chiến thuật đầu tiên cho người chơi. Trạng thái game phải là 'COMBAT'.`;
 
-                    const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent);
+                    const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent, undefined, false);
                     gameAIService.current = service;
                     addLogEntry(`Dịch vụ AI được khởi tạo cho Chế độ Thử nghiệm Chiến đấu.`);
 
-                    const response = await service.sendAction(initialPrompt);
+                    const { text: response, tokenCount } = await service.sendAction(initialPrompt);
+                    setLastTurnTokenUsage(tokenCount);
                     let gameData: GameData;
 
                     try {
@@ -1322,7 +1306,8 @@ const App: React.FC = () => {
         return (
             <>
                 <StartScreen 
-                    onStartGame={handleStartGame} 
+                    onStartGame={() => handleStartGame()}
+                    onStartCustomJourney={handleStartCustomJourney} 
                     onLoadGame={loadGame} 
                     saveFileExists={saveFileExists}
                     onOpenApiKeyManager={() => setIsApiKeyManagerOpen(true)}
@@ -1340,6 +1325,10 @@ const App: React.FC = () => {
                 />
             </>
         );
+    }
+    
+    if (gameState.phase === 'CUSTOM_JOURNEY') {
+        return <CustomJourneyScreen onJourneyCreate={handleJourneyCreate} onBack={restartGame} />;
     }
 
     if (gameState.phase === 'CHARACTER_CREATION') {
@@ -1366,7 +1355,6 @@ const App: React.FC = () => {
             
             <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 flex flex-col gap-6">
-                    {gameState.phase !== 'COMBAT' && <ArtPanel imageUrl={artImageUrl} isLoading={isArtLoading} />}
                     <NarrativePanel 
                         narrative={gameState.narrative} 
                         combatLog={gameState.combatLog} 
@@ -1389,7 +1377,7 @@ const App: React.FC = () => {
                 <div className="lg:col-span-1">
                      <div className="bg-gray-800/50 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm flex flex-col h-full">
                         <div className="flex-grow p-4 space-y-6 overflow-y-auto">
-                            <PlayerStatsPanel playerState={playerState} />
+                            <PlayerStatsPanel playerState={playerState} lastTurnTokenUsage={lastTurnTokenUsage} />
                             <InfoTabsPanel 
                                 companions={playerState.companions} 
                                 quests={playerState.quests} 
@@ -1515,6 +1503,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
             )}
+            
         </div>
     );
 };

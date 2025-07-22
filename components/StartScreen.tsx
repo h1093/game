@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { GAME_TITLE } from '../constants';
 
@@ -28,8 +27,13 @@ const IconSword = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+const IconFeather = (props: React.SVGProps<SVGSVGElement>) => (
+     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/></svg>
+);
+
 interface StartScreenProps {
     onStartGame: () => void;
+    onStartCustomJourney: () => void;
     onLoadGame: () => void;
     saveFileExists: boolean;
     onOpenApiKeyManager: () => void;
@@ -53,16 +57,70 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
             <h2 className="text-3xl font-title text-red-400 border-b-2 border-red-500/30 pb-2">Nhật Ký Cập Nhật</h2>
             
             <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.4: Biên Niên Sử Chưa Viết</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[TÍNH NĂNG CHÍNH]</span> **Tạo Hành Trình Riêng**: Một chế độ "Tạo Hành Trình Riêng" đã được thêm vào màn hình bắt đầu.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[CỐT TRUYỆN DO NGƯỜI CHƠI ĐIỀU KHIỂN]</span> Giờ đây bạn có thể viết nên bối cảnh câu chuyện của riêng mình, xác định thế giới, tình huống khởi đầu và mục tiêu cuối cùng của bạn. AI Quản Trò sẽ sử dụng lời nhắc của bạn làm nền tảng cho toàn bộ cuộc phiêu lưu.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[KHẢ NĂNG VÔ HẠN]</span> Muốn trở thành một cướp biển bị nguyền rủa tìm kiếm kho báu đã mất trên một biển ma? Một thám tử trong một thành phố gothic, ẩm ướt được cung cấp năng lượng bởi ma thuật bị cấm? Một người sống sót đơn độc trong một vùng đất hoang băng giá sau khi mặt trời chết? Bây giờ bạn có thể. Câu chuyện là của bạn để bắt đầu.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.3: Chân Trời Vỡ Nát</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[ĐẠI TU AI THẾ GIỚI]</span> **BỐI CẢNH MỞ RỘNG**: AI Quản Trò giờ đây được huấn luyện để suy nghĩ như một nhà sử học và người vẽ bản đồ, tạo ra một thế giới rộng lớn vượt ra ngoài tầm mắt của người chơi.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[CHÂN TRỜI XA XĂM]</span> AI sẽ thường xuyên mô tả các địa danh ở xa, các vùng đất khác nhau có thể nhìn thấy từ vị trí của bạn, tạo ra cảm giác về một bản đồ thế giới thực sự.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[THẾ LỰC & PHE PHÁI]</span> Thế giới giờ đây được làm phong phú hơn với các phe phái, đế chế sụp đổ, và các giáo phái bí ẩn. Dấu vết của họ sẽ được tìm thấy trong các truyền thuyết, vật phẩm và các cuộc gặp gỡ.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-blue-400">[LỊCH SỬ SÂU SẮC]</span> Khám phá một thế giới với nhiều lớp lịch sử. Các tàn tích bạn đi qua có thể được xây dựng trên nền của một nền văn minh còn cổ xưa hơn nữa.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.2: Tiếng Thì Thầm Của Đá</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[ĐẠI TU AI THẾ GIỚI]</span> **THẾ GIỚI CÓ HỒN HƠN**: Để đáp lại phản hồi về việc thế giới có cảm giác bị bó hẹp, AI Quản Trò đã được dạy một triết lý thiết kế mới.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[TỪ BỎ "PHÒNG HỘP"]</span> AI giờ đây sẽ tránh tạo ra các "căn phòng" chung chung. Thay vào đó, nó sẽ xây dựng các không gian độc đáo, có lịch sử và kết nối với nhau một cách tự nhiên. Mong đợi những quang cảnh rộng lớn, những tàn tích có câu chuyện, và những lối đi ẩn giấu.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[CẢM NHẬN BẰNG MỌI GIÁC QUAN]</span> Thế giới không chỉ để nhìn. AI sẽ thường xuyên mô tả những gì bạn nghe, ngửi và cảm nhận, từ tiếng gió hú qua những kẽ nứt đến mùi hôi thối của sự mục rữa, tạo ra một trải nghiệm nhập vai sâu sắc hơn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-blue-400">[LỰA CHỌN CÓ Ý NGHĨA HƠN]</span> Các lựa chọn của bạn sẽ phản ánh sự phong phú của môi trường, cho phép bạn tương tác với các chi tiết cụ thể của thế giới thay vì chỉ đi từ A đến B.
+                    </li>
+                </ul>
+            </div>
+            
+            <div className="border-b border-gray-700 pb-6">
                 <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.1: Tiếng Vọng Trong Hoang Tàn</h3>
                 <ul className="list-disc list-inside space-y-3 text-gray-300">
                     <li>
-                        <span className="font-semibold text-red-400">[CẬP NHẬT CỐT LÕI]</span> **THẾ GIỚI KHÔNG TRỐNG RỖNG**: Một quy tắc nền tảng mới đã được khắc vào bộ não của AI Quản Trò. Thế giới không còn là một chuỗi các căn phòng trống.
+                        <span className="font-semibold text-red-400">[CẬP NHẬT CỐT LÕI]</span> **SỰ NGUY HIỂM & CHIỀU SÂU**: Một loạt các quy tắc cốt lõi mới đã được khắc vào AI Quản Trò để giải quyết phản hồi rằng thế giới quá trống rỗng và các cơ chế quá đơn giản.
                     </li>
                      <li>
-                        <span className="font-semibold text-green-400">[SỰ SỐNG BỀN BỈ]</span> AI giờ đây bị **bắt buộc** phải tích cực tạo ra sự sống (hoặc tàn dư của nó) trong hầu hết mọi cảnh. Điều này đảm bảo rằng hành trình của bạn sẽ luôn đầy ắp các cuộc gặp gỡ tiềm năng, các mối đe dọa bất ngờ và những mảnh đời vỡ nát.
+                        <span className="font-semibold text-green-400">[THẾ GIỚI SỐNG ĐỘNG]</span> AI giờ đây bị **bắt buộc** phải tích cực tạo ra NPC, kẻ thù, hoặc các dấu hiệu của sự sống (hoặc cái chết) trong hầu hết mọi cảnh.
                     </li>
                     <li>
-                        <span className="font-semibold text-purple-400">[SỰ ĐA DẠNG CỦA SỰ SỐNG]</span> NPC có thể là những người sống sót, những sinh vật kỳ lạ, hoặc thậm chí chỉ là những cái xác mang theo những câu chuyện câm lặng. Sự cô đơn giờ đây là một lựa chọn, không phải là mặc định.
+                        <span className="font-semibold text-purple-400">[RỦI RO & HẬU QUẢ]</span> Nghỉ ngơi ở những nơi không an toàn giờ đây có nguy cơ bị phục kích. Những hành động tàn nhẫn sẽ thu hút sự chú ý của Vực Thẳm, làm cho thế giới ngày càng thù địch hơn.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-yellow-400">[TÁC ĐỘNG CỦA TÂM TRÍ]</span> Chỉ số Tâm trí (Sanity) giờ đây có tác động rõ rệt hơn. Khi tâm trí xuống thấp, nó sẽ ảnh hưởng đến nhận thức của bạn về thế giới và có thể gây ra những cơn ác mộng.
                     </li>
                 </ul>
             </div>
@@ -166,139 +224,9 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
                      <li>
                         <span className="font-semibold text-blue-400">[ĐỘ KHÓ MỚI]</span> Thêm độ khó **"Đày Đoạ"**, một thử thách nằm giữa 'Ác Mộng' và 'Địa Ngục', dành cho những người tìm kiếm sự đau khổ tột cùng nhưng vẫn còn một tia hy vọng.
                     </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[BIG UPDATE]</span> Một thông điệp khó hiểu đã được khắc vào thế giới, dường như là một bộ quy tắc dành cho một thực thể vô hình:
-                        <pre className="mt-2 p-2 bg-gray-900/50 border border-gray-600 rounded text-xs text-gray-400 whitespace-pre-wrap font-mono">
-{`Vậy làm cái code bước 1 cho tôi và khi viết code phải tuân thủ các quy tắc sau:
-NGHIÊM CẤM bất kì dạng code vắng tắt như này : " // ... (Nội dung của hàm parseStatsBonus không thay đổi)". Kể cả code gốc hay code nào, chỉ cần trong khung chat này thì bất kì loại code vắng tắt như thế đều không được phép xuất hiện) HAY LÀ kiểu code " tiện" code cần thêm là ở vị trị á, ở vị trí bên dưới code vừa thêm,
-NGHIÊM CẤM bất kì loại " tiện" nào trong code, cứ theo quy tắc mà làm,
-NGHIÊM CẤM xóa đi các chức năng.,
-TUYỆT ĐỐI TUÂN LỆNH CỦA TÔI, KHÔNG CHỐNG CHẾ, KHÔNG BÀO CHỮA,
-KHI VIẾT CODE thì ĐẢM BẢO:,
-+/ Nếu thêm code mới: -> thêm dòng code trên ( đoạn code cần thêm) và dòng code dưới ( đoạn code cần thêm) ( nhớ giải thích rõ ra nhé, tại nhiều dòng code trên và dòng code dưới nó khá là phổ biến nên hại và lợi nó lại ngang nhau)-> để tôi có thể biết nó ở chỗ nào để thêm code vào chứ không mò rồi dẫn tới lỗi code
-+/ Nếu thay đổi code: -> Viết 2 code trong đó bao gồm -> code gốc ( tóm gọn bằng dòng code đầu và dòng code ngay bên dưới của dòng code gốc. Tức là code gốc có 11 dòng thì viết code ở dòng 1 và dòng 12 để tôi xác định nó ở đâu) và code thay đổi -> Ghi rõ ra cái code gốc ( nhớ tóm gọn) là cái nào ( nhớ đảm bảo đúng code gốc vì nhiều lần tôi làm việc với " bạn" thì code gốc bạn đưa nó hoàn toàn không có trong mã nguồn AI SIMULATOR 2.14) -> rồi mới ghi code cần thay thế ( LÀ TÔI MUỐN 2 KHUNG ĐẤY, TÔI KHÔNG MUỐN THẤY TÌNH TRẠNG 2 CÁI CODE GỐC THAY THẾ CÙNG CHUNG MỘT KHUNG CODE !)
-Ví dụ: code có 12 dòng mà chỉ thay đổi code từ dòng 6->9 thì trình bày như sau:
-Code gốc:
-Dòng code đầu: dòng 5 ( tôi ghi dòng 5 chỉ để tượng trưng, thực tế là viết hết cả dòng đấy ra, chứ không phải là viết số thứ tự của dòng)
-dòng code bên dưới dòng code gốc: dòng 10
-Code thay thế:
-dòng code đã thay thế từ dòng 6 ->9
-Nếu viết theo ví dụ thì nó giúp bạn tiết kiếm lại thời để đỡ viết lại code, và tập trung vào thay thế code cũng giúp tôi nhanh chóng xác định vị trí được sửa và thay thế nó
-Đặc biệt:
--> chỉ sửa code nào nên sửa không sửa vô tội vã -> Lí do là: trước đấy tôi cũng nhờ bạn sửa code nhưng bạn lại xóa luôn cái code đang chạy ổn và chức năng liên quan tới nó, thành ra lỗi còn to hơn
--> Giữ nguyên các debug, và thêm các debug mới vào các code bạn làm để có thể theo dõi và tạo`}
-                        </pre>
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.9: Đồng Minh và Định Mệnh</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống Đồng Đội: Giờ đây bạn không còn phải đơn độc. Gặp gỡ và chiêu mộ các nhân vật khác vào nhóm của bạn. Họ sẽ chiến đấu bên cạnh bạn, nhưng hãy cẩn thận, họ cũng có thể bị thương và có số phận riêng.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống Nhiệm Vụ: Khám phá các mục tiêu và cốt truyện sâu sắc hơn với Nhật Ký Nhiệm Vụ. Theo dõi các nhiệm vụ đang hoạt động và đã hoàn thành trong một tab chuyên dụng trong màn hình Hành Trang.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN GIAO DIỆN]</span> Bảng Đồng Đội và Nhiệm Vụ đã được thêm vào giao diện chính để dễ dàng theo dõi.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.8: Cái Giá Của Sự Sống</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống Thương Tật được làm lại hoàn toàn! Giờ đây, các bộ phận cơ thể có thể bị <span className="text-red-400 font-bold">cắt đứt</span>, ảnh hưởng vĩnh viễn đến khả năng chiến đấu và tương tác của bạn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Một chi bị cắt đứt sẽ trở thành một vật phẩm trong hành trang của bạn. Hãy cẩn thận, nó sẽ <span className="text-yellow-400 font-bold">phân rã</span> theo thời gian.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Tìm cách <span className="text-blue-400 font-bold">bảo quản</span> các chi bị cắt đứt để làm chậm quá trình thối rữa, có thể chúng sẽ có ích sau này...
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN]</span> Tạo nhân vật sâu sắc hơn với việc bổ sung các lựa chọn về <span className="font-semibold">Giới tính</span>, <span className="font-semibold">Tính cách</span>, và <span className="font-semibold">Mục tiêu</span>, ảnh hưởng đến câu chuyện khởi đầu của bạn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-yellow-400">[CÂN BẰNG]</span> Chế độ khó "Thử Thách" giờ đây sẽ không xóa file lưu của bạn khi chết, cho phép bạn tiếp tục từ điểm lưu cuối cùng. Chế độ "Ác Mộng" vẫn giữ nguyên cơ chế permadeath tàn nhẫn.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.7: Tri Thức Cổ Xưa</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                     <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN GIAO DIỆN]</span> Thêm "Sổ Kỹ Năng" vào màn hình Hành Trang. Giờ đây bạn có thể xem chi tiết tất cả các kỹ năng đã học một cách tập trung và tiện lợi.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.6: Kho Vũ Khí Của Người Dám Chết</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                     <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Màn hình Trang Bị chuyên dụng! Một nút "Trang Bị" mới đã được thêm vào, mở ra một giao diện riêng để quản lý vũ khí và áo giáp của bạn một cách trực quan hơn.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN GIAO DIỆN]</span> Màn hình Hành Trang đã được tinh giản để tập trung vào việc sử dụng vật phẩm và theo dõi nhật ký, giúp trải nghiệm người dùng gọn gàng hơn.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.5: Gánh Nặng Của Thép</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                     <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống Trang Bị đã được rèn! Tìm, trang bị và nâng cấp sức mạnh của bạn với vũ khí, áo giáp và các vật phẩm ma thuật. Mỗi món đồ bạn trang bị sẽ trực tiếp ảnh hưởng đến chỉ số của bạn.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.4: Ý Chí Tự Do</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                     <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Thêm hộp nhập văn bản hành động tùy chỉnh! Giờ đây bạn có thể gõ bất kỳ hành động nào bạn muốn, cho phép sự tự do và nhập vai chưa từng có.
-                    </li>
                 </ul>
             </div>
             
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.3: Di Sản Vĩnh Cửu</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                     <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Thêm hệ thống Lưu & Tải Game! Giờ đây bạn có thể lưu lại hành trình của mình và tiếp tục sau.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.2: Dấu Ấn Của Kẻ Sống Sót</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                     <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN GIAO DIỆN]</span> Giao diện Trạng Thái được sắp xếp lại, màn hình Hành Trang được thiết kế lại, thêm nút Thoát nhanh.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-yellow-400">[CÂN BẰNG]</span> Độ khó "Kể Chuyện" đã được loại bỏ.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[SỬA LỖI]</span> Khắc phục sự cố tràn văn bản trong bảng tường thuật.
-                    </li>
-                </ul>
-            </div>
-
-            <div>
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 1.1: Tiếng Vang Của Người Ghi Chép</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Thêm "Nhật Ký Cập Nhật" vào màn hình Hành Trang & Nhật Ký.
-                    </li>
-                </ul>
-            </div>
             <div className="pt-4 border-t border-gray-700 text-center">
                 <p className="text-gray-500 italic">Bóng tối không ngừng phát triển, và chúng tôi cũng vậy.</p>
             </div>
@@ -308,7 +236,7 @@ Nếu viết theo ví dụ thì nó giúp bạn tiết kiếm lại thời để
 );
 
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, saveFileExists, onOpenApiKeyManager, isMatureContent, onToggleMatureContent, onStartCombatTest }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onStartCustomJourney, onLoadGame, saveFileExists, onOpenApiKeyManager, isMatureContent, onToggleMatureContent, onStartCombatTest }) => {
     const [isUpdateLogOpen, setIsUpdateLogOpen] = useState(false);
 
     return (
@@ -336,6 +264,13 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
                         title="Bắt đầu cuộc phiêu lưu mới"
                     >
                         Trò Chơi Mới
+                    </button>
+                     <button
+                        onClick={onStartCustomJourney}
+                        className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-all duration-300 flex items-center gap-2"
+                        title="Tự viết nên bối cảnh và mục tiêu cho cuộc hành trình của bạn"
+                    >
+                        <IconFeather /> Tạo Hành Trình Riêng
                     </button>
                     <button
                         onClick={onStartCombatTest}
@@ -367,7 +302,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onLoadGame, save
                 </div>
             </div>
 
-            <div className="absolute bottom-4 left-4 right-4 flex justify-center">
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-4">
                  <p className="text-sm text-gray-500">Được cung cấp bởi API Gemini của Google.</p>
             </div>
 

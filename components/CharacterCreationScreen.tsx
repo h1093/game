@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { CharacterClass, Difficulty, Gender } from '../types';
-import { CLASSES, DIFFICULTIES, GENDERS, PERSONALITIES, GOALS } from '../constants';
+import { Origin, Difficulty, Gender } from '../types';
+import { ORIGINS, DIFFICULTIES, GENDERS, PERSONALITIES, GOALS, DIFFICULTY_POINT_BUY, BASE_STATS_BEFORE_POINT_BUY, PERSONALITY_NAMES } from '../constants';
 
 // SVG Icons
 const IconUser = (props: React.SVGProps<SVGSVGElement>) => (
@@ -23,12 +23,6 @@ const IconSpinner = (props: React.SVGProps<SVGSVGElement>) => (
 const IconBarChart2 = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
 );
-const IconThumbsUp = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-);
-const IconThumbsDown = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M10 15v-5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-);
 const IconUsers = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
 );
@@ -47,66 +41,96 @@ const IconEye = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 interface CharacterCreationScreenProps {
-    onCharacterCreate: (details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }, isCreatorsWill?: boolean) => void;
+    onCharacterCreate: (details: { name: string; bio: string; origin: Origin; difficulty: Difficulty; gender: Gender; personality: string; goal: string; finalStats: any }, isCreatorsWill?: boolean) => void;
     activeApiKey: string | undefined;
+    onGoToCreatorsWill: () => void;
 }
 
-const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCharacterCreate, activeApiKey }) => {
+type StatKey = keyof typeof BASE_STATS_BEFORE_POINT_BUY;
+
+const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCharacterCreate, activeApiKey, onGoToCreatorsWill }) => {
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
-    const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
+    const [selectedOrigin, setSelectedOrigin] = useState<Origin | null>(null);
     const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
     const [selectedGender, setSelectedGender] = useState<Gender | null>(null);
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
     const [selectedGoal, setSelectedGoal] = useState<string>('');
     const [error, setError] = useState('');
     const [isBioLoading, setIsBioLoading] = useState(false);
+    
+    const [points, setPoints] = useState<Record<StatKey, number>>({
+        baseMaxHp: 0, baseMaxStamina: 0, baseMaxMana: 0, baseMaxSanity: 0, baseAttack: 0, baseDefense: 0, baseCharisma: 0,
+    });
+    
+    const totalPoints = useMemo(() => {
+        return selectedDifficulty ? DIFFICULTY_POINT_BUY[selectedDifficulty] : 0;
+    }, [selectedDifficulty]);
+    
+    const pointsSpent = useMemo(() => Object.values(points).reduce((sum, val) => sum + val, 0), [points]);
+    const pointsRemaining = totalPoints - pointsSpent;
+
+    const finalStats = useMemo(() => {
+        const calculatedStats = { ...BASE_STATS_BEFORE_POINT_BUY };
+        let originBonuses: any = {};
+        if (selectedOrigin) {
+            originBonuses = ORIGINS[selectedOrigin].bonuses;
+        }
+
+        (Object.keys(calculatedStats) as StatKey[]).forEach(key => {
+            const pointValue = points[key] * (key.includes('Max') ? 5 : 1);
+            const bonusValueRaw = originBonuses[key];
+            // Ensure we only add numeric bonuses here. Proficiency is handled separately.
+            const bonusValue = typeof bonusValueRaw === 'number' ? bonusValueRaw : 0;
+            calculatedStats[key] += pointValue + bonusValue;
+        });
+
+        return calculatedStats;
+    }, [points, selectedOrigin]);
+
+
+    const handlePointChange = (stat: StatKey, delta: number) => {
+        if (!selectedDifficulty) return;
+        const currentPointsForStat = points[stat];
+        if (delta > 0 && pointsRemaining > 0) {
+            setPoints(prev => ({ ...prev, [stat]: prev[stat] + delta }));
+        } else if (delta < 0 && currentPointsForStat > 0) {
+            setPoints(prev => ({ ...prev, [stat]: prev[stat] + delta }));
+        }
+    };
+
+    const handleDifficultySelect = (difficulty: Difficulty) => {
+        const newTotalPoints = DIFFICULTY_POINT_BUY[difficulty];
+        const currentPointsSpent = Object.values(points).reduce((sum, val) => sum + val, 0);
+
+        if (currentPointsSpent > newTotalPoints) {
+            setPoints({
+                baseMaxHp: 0, baseMaxStamina: 0, baseMaxMana: 0, baseMaxSanity: 0, baseAttack: 0, baseDefense: 0, baseCharisma: 0,
+            });
+        }
+        setSelectedDifficulty(difficulty);
+        setError('');
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim()) {
-            setError('Nhân vật của bạn phải có tên.');
-            return;
-        }
-        if (!selectedClass) {
-            setError('Bạn phải chọn một lớp nhân vật cho cuộc hành trình của mình.');
-            return;
-        }
-        if (!selectedGender) {
-            setError('Hãy chọn giới tính cho nhân vật của bạn.');
-            return;
-        }
-        if (!selectedPersonality) {
-            setError('Hãy chọn một tính cách nổi bật.');
-            return;
-        }
-        if (!selectedDifficulty) {
-            setError('Bạn phải chọn một độ khó cho cuộc phiêu lưu.');
-            return;
-        }
-        onCharacterCreate({ name, bio, characterClass: selectedClass, difficulty: selectedDifficulty, gender: selectedGender, personality: selectedPersonality, goal: selectedGoal }, false);
-    };
-
-    const handleCreatorsWillSubmit = () => {
-        const randomClasses = Object.keys(CLASSES) as CharacterClass[];
-        const randomGenders = Object.values(GENDERS);
-
-        const characterDetails = {
-            name: 'Kẻ Bị Nguyền Rủa',
-            bio: 'Một linh hồn trống rỗng được ném vào thế giới này như một trò đùa độc ác của đấng sáng tạo. Không có hy vọng, không có mục đích, chỉ có sự đau khổ vô tận đang chờ đợi.',
-            characterClass: randomClasses[Math.floor(Math.random() * randomClasses.length)],
-            difficulty: 'Địa Ngục' as Difficulty,
-            gender: randomGenders[Math.floor(Math.random() * randomGenders.length)] as Gender,
-            personality: 'Tự Hủy Hoại',
-            goal: 'Tìm kiếm sự kết thúc',
-        };
+        if (!name.trim()) { setError('Nhân vật của bạn phải có tên.'); return; }
+        if (!selectedOrigin) { setError('Bạn phải chọn một Nguồn Gốc.'); return; }
+        if (!selectedGender) { setError('Hãy chọn giới tính.'); return; }
+        if (!selectedPersonality) { setError('Hãy chọn một tính cách.'); return; }
+        if (!selectedDifficulty) { setError('Bạn phải chọn một độ khó.'); return; }
         
-        onCharacterCreate(characterDetails, true);
+        const characterDetails = {
+            name, bio, origin: selectedOrigin, difficulty: selectedDifficulty, 
+            gender: selectedGender, personality: selectedPersonality, goal: selectedGoal,
+            finalStats: { ...finalStats } // Pass calculated final stats
+        };
+        onCharacterCreate(characterDetails, false);
     };
 
     const handleRandomBio = async () => {
-        if (!selectedClass || !selectedPersonality) {
-            setError('Vui lòng chọn Lớp nhân vật và Tính cách trước khi tạo tiểu sử ngẫu nhiên.');
+        if (!selectedOrigin || !selectedPersonality) {
+            setError('Vui lòng chọn Nguồn Gốc và Tính cách trước khi tạo tiểu sử ngẫu nhiên.');
             return;
         }
         if (!activeApiKey) {
@@ -122,15 +146,11 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
             const ai = new GoogleGenAI({ apiKey: activeApiKey });
             const prompt = `Bạn là một người viết truyện cho một game nhập vai kỳ ảo hắc ám.
 Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí (khoảng 2-3 câu) cho một nhân vật.
-- **Lớp nhân vật**: ${selectedClass}
+- **Nguồn gốc**: ${selectedOrigin}
 - **Tính cách**: ${selectedPersonality}
-- **Yêu cầu**: Tiểu sử phải phản ánh cả lớp nhân vật và tính cách trong một thế giới tàn khốc, tuyệt vọng. Giọng văn phải u ám, nghiêm túc và gợi mở. Không dùng ngôi thứ nhất (không dùng "tôi", "tôi đã"). Chỉ trả lời bằng nội dung tiểu sử, không có lời dẫn hay các câu như "Đây là tiểu sử cho bạn:".`;
+- **Yêu cầu**: Tiểu sử phải phản ánh cả nguồn gốc và tính cách trong một thế giới tàn khốc, tuyệt vọng. Giọng văn phải u ám, nghiêm túc và gợi mở. Không dùng ngôi thứ nhất (không dùng "tôi", "tôi đã"). Chỉ trả lời bằng nội dung tiểu sử, không có lời dẫn hay các câu như "Đây là tiểu sử cho bạn:".`;
             
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
-
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
             setBio(response.text.trim());
         } catch (error) {
             console.error("Lỗi khi tạo tiểu sử:", error);
@@ -140,16 +160,17 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
         }
     };
 
-    const SelectionGrid = ({ title, icon, items, selectedItem, onSelect, errorCondition }: { title: string, icon: React.ReactElement, items: string[], selectedItem: string, onSelect: (item: any) => void, errorCondition: boolean }) => (
+    const SelectionGrid = ({ title, icon, items, selectedItem, onSelect, errorCondition, disabled = false }: { title: string, icon: React.ReactElement, items: string[], selectedItem: string | null, onSelect: (item: any) => void, errorCondition: boolean, disabled?: boolean }) => (
          <div>
-            <h2 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${errorCondition && !selectedItem ? 'text-red-500 animate-pulse' : ''}`}>{icon} {title}</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${errorCondition && !selectedItem ? 'text-red-500 animate-pulse' : ''}`}>{icon} {title}</h3>
+            <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${disabled ? 'opacity-50' : ''}`}>
                 {items.map((item) => (
                     <button
                         key={item}
                         type="button"
-                        onClick={() => { onSelect(item); setError(''); }}
-                        className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedItem === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600 hover:border-red-600 hover:bg-gray-700'}`}
+                        onClick={() => { if (!disabled) onSelect(item); }}
+                        disabled={disabled}
+                        className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedItem === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600'} ${!disabled ? 'hover:border-red-600 hover:bg-gray-700' : 'cursor-not-allowed'}`}
                     >
                        {item}
                     </button>
@@ -157,170 +178,189 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
             </div>
         </div>
     );
+    
+    const StatPointAllocator = ({ label, statKey }: { label: string, statKey: StatKey }) => {
+        const pointValue = points[statKey];
+        const baseValue = BASE_STATS_BEFORE_POINT_BUY[statKey];
+        const originBonusRaw = selectedOrigin ? ORIGINS[selectedOrigin].bonuses[statKey as keyof typeof ORIGINS[Origin]['bonuses']] : 0;
+        const originBonus = typeof originBonusRaw === 'number' ? originBonusRaw : 0;
+        const totalValue = baseValue + (pointValue * (statKey.includes('Max') ? 5 : 1)) + originBonus;
+        
+        const isPointBuyDisabled = !selectedDifficulty;
+
+        return (
+            <div className={`flex items-center justify-between p-2 rounded-lg ${isPointBuyDisabled ? 'bg-gray-800/20' : 'bg-gray-800/50'}`}>
+                <span className="font-semibold text-gray-300">{label}</span>
+                <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => handlePointChange(statKey, -1)} disabled={isPointBuyDisabled || pointValue === 0} className="w-7 h-7 bg-red-800 hover:bg-red-700 rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed">-</button>
+                    <span className="font-mono w-20 text-center">
+                       <span className="text-white text-lg">{totalValue}</span>
+                       {originBonus !== 0 && <span className={originBonus > 0 ? "text-green-400 text-xs ml-1" : "text-red-400 text-xs ml-1"}>({originBonus > 0 ? `+${originBonus}` : originBonus})</span>}
+                    </span>
+                    <button type="button" onClick={() => handlePointChange(statKey, 1)} disabled={isPointBuyDisabled || pointsRemaining <= 0} className="w-7 h-7 bg-green-800 hover:bg-green-700 rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed">+</button>
+                </div>
+            </div>
+        );
+    };
 
     return (
-        <div className="bg-gray-900 text-gray-300 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-red-900/50 selection:text-white">
-            <div className="w-full max-w-4xl bg-gray-800/50 border border-gray-700 rounded-lg shadow-2xl p-8 backdrop-blur-sm animate-fadeIn">
-                <h1 className="text-4xl font-title text-red-500 text-center mb-2">Rèn Đúc Linh Hồn</h1>
-                <p className="text-center text-gray-400 mb-8">Ngươi là ai, mà dám thách thức bóng tối?</p>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="name" className={`text-lg font-bold text-gray-300 flex items-center gap-2 mb-2 ${error && !name.trim() ? 'text-red-500 animate-pulse' : ''}`}><IconUser /> Tên</label>
-                        <input
-                            id="name"
-                            type="text"
-                            value={name}
-                            onChange={(e) => { setName(e.target.value); setError(''); }}
-                            placeholder="Nhập tên nhân vật của bạn"
-                            className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <div className="flex justify-between items-center mb-2">
-                            <label htmlFor="bio" className="text-lg font-bold text-gray-300 flex items-center gap-2"><IconBookOpen /> Tiểu Sử (Tùy chọn)</label>
-                            <button 
-                                type="button" 
-                                onClick={handleRandomBio}
-                                disabled={isBioLoading || !selectedClass || !selectedPersonality || !activeApiKey}
-                                className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors duration-200 disabled:text-gray-500 disabled:cursor-not-allowed"
-                                title={!selectedClass || !selectedPersonality ? "Chọn lớp và tính cách trước" : !activeApiKey ? "Cần API Key để sử dụng tính năng này" : "Tạo tiểu sử ngẫu nhiên bằng AI"}
-                            >
-                                {isBioLoading ? <IconSpinner /> : <IconShuffle />}
-                                {isBioLoading ? 'Đang viết...' : 'Tạo bằng AI'}
-                            </button>
-                        </div>
-                        <textarea
-                            id="bio"
-                            value={bio}
-                            onChange={(e) => setBio(e.target.value)}
-                            placeholder={isBioLoading ? "AI đang dệt nên quá khứ của bạn..." : "Một lịch sử ngắn gọn về cuộc đời bạn trước khi hoang tàn... hoặc để AI tạo giúp."}
-                            rows={3}
-                            className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition disabled:opacity-70 disabled:cursor-wait"
-                            disabled={isBioLoading}
-                        />
-                    </div>
-                    
-                    <div>
-                        <h2 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${error && !selectedClass ? 'text-red-500 animate-pulse' : ''}`}><IconShield /> Chọn Lớp Nhân Vật Của Bạn</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {(Object.keys(CLASSES) as CharacterClass[]).map((className) => (
-                                <button
-                                    key={className}
-                                    type="button"
-                                    onClick={() => { setSelectedClass(className); setError(''); }}
-                                    className={`p-4 border-2 rounded-lg text-left transition-all duration-200 h-full flex flex-col ${selectedClass === className ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600 hover:border-red-600 hover:bg-gray-700'}`}
-                                >
-                                    <h3 className="font-title text-xl text-red-400">{className}</h3>
-                                    <p className="text-sm text-gray-400 mt-1 flex-grow">{CLASSES[className].description}</p>
-                                    
-                                    <div className="mt-4 pt-2 border-t border-gray-600/50 space-y-3 text-xs">
-                                        <div>
-                                            <h4 className="font-bold flex items-baseline gap-1 text-green-400"><IconThumbsUp /> Điểm Mạnh</h4>
-                                            <ul className="list-disc list-inside text-gray-300 pl-2">
-                                                {CLASSES[className].strengths.map((strength, i) => (
-                                                    <li key={i}>{strength}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold flex items-baseline gap-1 text-red-400"><IconThumbsDown /> Điểm Yếu</h4>
-                                            <ul className="list-disc list-inside text-gray-300 pl-2">
-                                                {CLASSES[className].weaknesses.map((weakness, i) => (
-                                                    <li key={i}>{weakness}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                         <SelectionGrid title="Chọn Giới Tính" icon={<IconUsers />} items={Object.values(GENDERS)} selectedItem={selectedGender!} onSelect={setSelectedGender} errorCondition={!!error} />
-                         <SelectionGrid title="Chọn Tính Cách" icon={<IconSmile />} items={PERSONALITIES} selectedItem={selectedPersonality} onSelect={setSelectedPersonality} errorCondition={!!error} />
-                    </div>
-
-                    <div>
-                        <h2 className="text-lg font-bold text-gray-300 mb-3 flex items-center gap-2">
-                            <IconCompass /> Mục Tiêu Của Bạn (Tùy chọn)
-                        </h2>
-                        <div className="flex items-center gap-4 p-4 bg-gray-700/50 border-2 border-gray-600 rounded-lg">
-                            <div className="flex-grow">
-                                {selectedGoal ? (
-                                    <p className="text-white text-lg italic">"{selectedGoal}"</p>
-                                ) : (
-                                    <p className="text-gray-400">Bạn có thể bắt đầu mà không có mục tiêu rõ ràng, để số phận dẫn lối.</p>
-                                )}
+         <div className="bg-gray-900 text-gray-300 min-h-screen flex items-center justify-center p-4 selection:bg-red-900/50 selection:text-white">
+            <div className="w-full max-w-6xl mx-auto">
+                <h1 className="text-5xl font-title text-center text-red-500 mb-8">Tạo Dựng Linh Hồn</h1>
+                
+                <form onSubmit={handleSubmit}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* ----- Left Column: Choices ----- */}
+                        <div className="space-y-6 bg-gray-800/30 p-6 rounded-lg border border-gray-700">
+                           {/* Name Input */}
+                           <div>
+                                <label htmlFor="name" className="text-lg font-bold text-gray-300 mb-3 flex items-center gap-2"><IconUser/> Tên Nhân Vật</label>
+                                <input
+                                    id="name"
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                                    placeholder="Một cái tên bị lãng quên..."
+                                    required
+                                />
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const randomIndex = Math.floor(Math.random() * GOALS.length);
-                                        setSelectedGoal(GOALS[randomIndex]);
-                                        setError('');
-                                    }}
-                                    className="flex items-center gap-2 bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                                    title="Tìm một mục tiêu ngẫu nhiên"
-                                >
-                                    <IconShuffle />
-                                    {selectedGoal ? 'Mục Tiêu Khác' : 'Tìm Mục Tiêu'}
-                                </button>
-                                {selectedGoal && (
+
+                            {/* Bio Input */}
+                            <div>
+                                <label htmlFor="bio" className="text-lg font-bold text-gray-300 mb-3 flex items-center gap-2"><IconBookOpen /> Tiểu Sử</label>
+                                <div className="relative">
+                                    <textarea
+                                        id="bio"
+                                        value={bio}
+                                        onChange={(e) => setBio(e.target.value)}
+                                        rows={4}
+                                        className="w-full bg-gray-900 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                                        placeholder="Những mảnh vỡ của một cuộc đời đã qua..."
+                                    />
                                     <button
                                         type="button"
-                                        onClick={() => setSelectedGoal('')}
-                                        className="p-2 text-gray-400 hover:text-white transition-colors"
-                                        title="Xóa mục tiêu"
+                                        onClick={handleRandomBio}
+                                        disabled={isBioLoading || !selectedOrigin || !selectedPersonality || !activeApiKey}
+                                        className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xs font-bold py-1 px-2 rounded-md transition-colors"
+                                        title={!selectedOrigin || !selectedPersonality ? "Chọn Nguồn Gốc và Tính cách trước" : "Tạo tiểu sử ngẫu nhiên bằng AI"}
                                     >
-                                        <IconX size={20} />
+                                        {isBioLoading ? <IconSpinner /> : <IconShuffle className="w-4 h-4" />} Ngẫu nhiên
                                     </button>
+                                </div>
+                            </div>
+
+                            {/* Selections */}
+                             <div>
+                                <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${!selectedOrigin ? 'text-red-500 animate-pulse' : ''}`}><IconUsers/> Nguồn Gốc</h3>
+                                <div className={`grid grid-cols-2 md:grid-cols-3 gap-3`}>
+                                    {(Object.keys(ORIGINS) as Origin[]).map((item) => (
+                                        <button
+                                            key={item}
+                                            type="button"
+                                            onClick={() => setSelectedOrigin(item)}
+                                            className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedOrigin === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600'} hover:border-red-600 hover:bg-gray-700`}
+                                        >
+                                           {item}
+                                        </button>
+                                    ))}
+                                </div>
+                                {selectedOrigin && (
+                                    <div className="mt-4 p-4 bg-gray-900/50 rounded-md border border-gray-700 animate-fadeIn">
+                                        <p className="text-gray-400 italic">{ORIGINS[selectedOrigin].description}</p>
+                                    </div>
+                                )}
+                            </div>
+                             <SelectionGrid title="Giới Tính" icon={<IconUser/>} items={Object.keys(GENDERS)} selectedItem={selectedGender} onSelect={item => setSelectedGender(item)} errorCondition={!selectedGender} />
+                             <div>
+                                <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${!selectedPersonality ? 'text-red-500 animate-pulse' : ''}`}><IconSmile/> Tính Cách</h3>
+                                <div className={`grid grid-cols-2 md:grid-cols-3 gap-3`}>
+                                    {PERSONALITY_NAMES.map((item) => (
+                                        <button
+                                            key={item}
+                                            type="button"
+                                            onClick={() => setSelectedPersonality(item)}
+                                            className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedPersonality === item ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600'} hover:border-red-600 hover:bg-gray-700`}
+                                        >
+                                           {item}
+                                        </button>
+                                    ))}
+                                </div>
+                                {selectedPersonality && PERSONALITIES[selectedPersonality] && (
+                                    <div className="mt-4 p-4 bg-gray-900/50 rounded-md border border-gray-700 animate-fadeIn">
+                                        <p className="text-gray-300 italic mb-2">{PERSONALITIES[selectedPersonality].description}</p>
+                                        <p className="text-green-400 text-sm"><span className="font-bold">Tích cực:</span> {PERSONALITIES[selectedPersonality].effects.positive}</p>
+                                        <p className="text-red-400 text-sm"><span className="font-bold">Tiêu cực:</span> {PERSONALITIES[selectedPersonality].effects.negative}</p>
+                                    </div>
+                                )}
+                            </div>
+                             <SelectionGrid title="Mục Tiêu" icon={<IconCompass/>} items={GOALS} selectedItem={selectedGoal} onSelect={item => setSelectedGoal(item)} errorCondition={false} />
+                        </div>
+
+                        {/* ----- Right Column: Difficulty, Stats ----- */}
+                        <div className="space-y-6 bg-gray-800/30 p-6 rounded-lg border border-gray-700">
+                             <div>
+                                <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${!selectedDifficulty ? 'text-red-500 animate-pulse' : ''}`}><IconShield/> Độ Khó</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {(Object.keys(DIFFICULTIES) as Difficulty[]).map((diff) => (
+                                        <button
+                                            key={diff}
+                                            type="button"
+                                            onClick={() => handleDifficultySelect(diff)}
+                                            className={`p-3 border-2 rounded-lg text-center transition-all duration-200 ${selectedDifficulty === diff ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600'} hover:border-red-600 hover:bg-gray-700`}
+                                            title={DIFFICULTIES[diff].description}
+                                        >
+                                           {diff}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            {/* Point Buy System */}
+                            <div className="pt-6 border-t border-gray-700 space-y-2">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h3 className="text-lg font-bold text-gray-300 flex items-center gap-2"><IconBarChart2/> Phân Bổ Điểm</h3>
+                                    <div className="text-center">
+                                        <span className="text-2xl font-mono font-bold text-yellow-400">{selectedDifficulty ? pointsRemaining : 'N/A'}</span>
+                                        <p className="text-xs text-gray-400">Điểm còn lại</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                    <StatPointAllocator label="Máu" statKey="baseMaxHp" />
+                                    <StatPointAllocator label="Thể Lực" statKey="baseMaxStamina" />
+                                    <StatPointAllocator label="Mana" statKey="baseMaxMana" />
+                                    <StatPointAllocator label="Tâm Trí" statKey="baseMaxSanity" />
+                                    <StatPointAllocator label="Tấn Công" statKey="baseAttack" />
+                                    <StatPointAllocator label="Phòng Thủ" statKey="baseDefense" />
+                                    <StatPointAllocator label="Sức Hấp Dẫn" statKey="baseCharisma" />
+                                </div>
+                                {!selectedDifficulty && (
+                                    <p className="text-center text-yellow-400/80 text-sm mt-2">Vui lòng chọn độ khó để phân bổ điểm.</p>
                                 )}
                             </div>
                         </div>
                     </div>
-
-                    <div>
-                        <h2 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${error && !selectedDifficulty ? 'text-red-500 animate-pulse' : ''}`}><IconBarChart2 /> Chọn Độ Khó</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {(Object.keys(DIFFICULTIES) as Difficulty[]).map((difficultyName) => (
-                                <button
-                                    key={difficultyName}
-                                    type="button"
-                                    onClick={() => { setSelectedDifficulty(difficultyName); setError(''); }}
-                                    className={`p-4 border-2 rounded-lg text-left transition-all duration-200 h-full flex flex-col ${selectedDifficulty === difficultyName ? 'bg-red-800/40 border-red-500 scale-105' : 'bg-gray-700/50 border-gray-600 hover:border-red-600 hover:bg-gray-700'}`}
-                                >
-                                    <h3 className="font-title text-xl text-red-400">{difficultyName}</h3>
-                                    <p className="text-sm text-gray-400 mt-1">{DIFFICULTIES[difficultyName].description}</p>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                     
-                    {error && <p className="text-red-500 text-center font-bold animate-pulse">{error}</p>}
-
-                    <div className="pt-4 text-center flex justify-center items-center gap-4 flex-wrap">
-                        <button
-                            type="submit"
-                            disabled={!name || !selectedClass || !selectedDifficulty || !selectedGender || !selectedPersonality}
-                            className="bg-red-700 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-10 rounded-lg text-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none shadow-[0_0_20px_rgba(220,38,38,0.7)]"
-                        >
+                    {error && <p className="text-red-500 text-center font-bold mt-6">{error}</p>}
+                    
+                    <div className="mt-8 text-center">
+                        <button type="submit" className="bg-red-700 hover:bg-red-600 text-white font-bold py-4 px-12 rounded-lg text-2xl transition-all duration-300 transform hover:scale-105 shadow-[0_0_20px_rgba(220,38,38,0.7)]">
                             Bắt Đầu Hành Trình
-                        </button>
-                         <button
-                            type="button"
-                            onClick={handleCreatorsWillSubmit}
-                            className="flex items-center gap-2 bg-black hover:bg-purple-900/50 border-2 border-purple-600 text-purple-400 font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
-                            title="Thách thức các quy tắc của chính Vực Thẳm. Quyền năng và sự tuyệt vọng đang chờ đợi."
-                        >
-                            <IconEye /> Ý Chí Sáng Thế
                         </button>
                     </div>
                 </form>
+
+                 <div className="text-center mt-6 border-t border-gray-700/50 pt-6">
+                    <button 
+                        onClick={onGoToCreatorsWill} 
+                        className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors flex items-center gap-2 mx-auto"
+                        title="Bước vào Chế độ Thần Thánh"
+                    >
+                        <IconEye />
+                        <span>Bước vào con đường của một vị thần...</span>
+                    </button>
+                </div>
             </div>
         </div>
     );

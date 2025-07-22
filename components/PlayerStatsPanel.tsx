@@ -3,6 +3,7 @@
 import React from 'react';
 import { PlayerState, Appearance } from '../types';
 import BodyStatusFigure from './BodyStatusFigure';
+import { OUTER_GODS } from '../constants';
 
 // SVG Icons
 const IconHeart = (props: React.SVGProps<SVGSVGElement>) => (
@@ -68,6 +69,16 @@ const IconHeartOff = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+const IconAllMotherMark = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 3a9 9 0 0 1 9 9 9 9 0 0 1-9 9 9 9 0 0 1-9-9 9 9 0 0 1 9-9zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 12l4 4M12 12l-4-4M12 12l-4 4M12 12l4-4"/></svg>
+);
+const IconSilentWatcherMark = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 2L2 12l10 10 10-10L12 2z"/><circle cx="12" cy="12" r="3"/></svg>
+);
+const IconAbyssalHungerMark = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 12c0 5.523 4.477 10 10 10s10-4.477 10-10c0-1.62-.386-3.15-1.07-4.5M12 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/><path d="M12 12v3a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-3"/><path d="M12 12v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3"/><path d="M12 12h3a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-3"/></svg>
+);
+
 
 const IconMeat = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.23 4.23 18.5 8.5C19.94 9.94 21.96 11.23 22 13c.03 1.34-1.02 2.52-2.34 2.66A20.61 20.61 0 0 1 14 16c-2.4 0-4.6.4-6.5 1.18-1.3.52-2.6-1.18-1.68-2.36.94-1.12 2.4-2.4 2.4-3.82 0-1.28-1-2.5-1-3.5S5.4 4.8 7 4.1c1-.44 2.24-.52 3.27-.16.9.33 1.5 1.03 2.23 1.76.73.73 1.76 1.5 1.73 2.23Z"/><path d="m14.23 4.23.5-.5c.79-.79 2.07-.79 2.86 0 .79.79.79 2.07 0 2.86l-.5.5"/></svg>
@@ -90,6 +101,17 @@ const IconShirt = (props: React.SVGProps<SVGSVGElement>) => (
 const IconCpu = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
 );
+
+const IconGodFragment = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M12 2 4 8l8 6 8-6-8-6z" />
+        <path d="m4 8 8 6-8 6" />
+        <path d="m12 14 8-6" />
+        <path d="M5 15.5 12 22l7-6.5" />
+        <path d="m12 2-1.5 9L12 14l1.5-3z" />
+    </svg>
+);
+
 
 interface PlayerStatsPanelProps {
     playerState: PlayerState;
@@ -153,6 +175,8 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState, lastTu
     const charismaBonus = playerState.charisma - playerState.baseCharisma;
     
     const reputationInfo = getReputationText(playerState.reputation);
+    
+    const activeOuterGodMark = playerState.outerGodMark ? OUTER_GODS[playerState.outerGodMark] : null;
 
     return (
         <div>
@@ -160,9 +184,9 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState, lastTu
             
             <div className="space-y-4">
                 {/* Top Section: Name/Class and Body Figure */}
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                     <div>
-                        <h3 className="text-2xl font-bold flex items-center gap-2 text-gray-200">
+                        <h3 className="text-2xl font-bold flex items-center gap-2 flex-wrap text-gray-200">
                             <IconUser /> 
                             <span>{playerState.name}</span>
                             {playerState.isMarked && (
@@ -175,8 +199,23 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState, lastTu
                                     <IconHeartOff className="w-6 h-6 text-fuchsia-500 animate-pulse" />
                                 </span>
                             )}
+                            {playerState.outerGodMark === 'ALL_MOTHER' && (
+                                <span title={activeOuterGodMark?.markDescription}>
+                                    <IconAllMotherMark className="w-6 h-6 text-green-400 animate-pulse" />
+                                </span>
+                            )}
+                            {playerState.outerGodMark === 'SILENT_WATCHER' && (
+                                <span title={activeOuterGodMark?.markDescription}>
+                                    <IconSilentWatcherMark className="w-6 h-6 text-cyan-400 animate-pulse" />
+                                </span>
+                            )}
+                            {playerState.outerGodMark === 'ABYSSAL_HUNGER' && (
+                                <span title={activeOuterGodMark?.markDescription}>
+                                    <IconAbyssalHungerMark className="w-6 h-6 text-orange-500 animate-pulse" />
+                                </span>
+                            )}
                         </h3>
-                        <p className="text-lg font-semibold font-title text-red-300 mt-1">{playerState.class}</p>
+                        <p className="text-lg font-semibold font-title text-red-300 mt-1">{playerState.origin}</p>
                     </div>
                     <div className="flex-shrink-0">
                         <BodyStatusFigure bodyStatus={playerState.bodyStatus} />
@@ -203,6 +242,10 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState, lastTu
 
                 {/* Social Stats */}
                  <div className="pt-3 border-t border-gray-700/50 space-y-2">
+                     <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-gray-300 flex items-center gap-2"><IconGodFragment className="w-4 h-4 text-purple-400" /> Mảnh Vỡ Thần Thánh</span>
+                        <span className={`font-mono text-xl font-bold ${playerState.godFragments > 0 ? 'text-purple-300 animate-pulse' : 'text-gray-400'}`}>{playerState.godFragments}</span>
+                    </div>
                     <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-gray-300 flex items-center gap-2"><IconFlag/> Uy Tín</span>
                         <span className={`font-bold ${reputationInfo.color}`}>{reputationInfo.text} ({playerState.reputation})</span>

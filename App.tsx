@@ -1,7 +1,8 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GameState, PlayerState, GameData, Choice, CharacterClass, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary, Enemy, NPC } from './types';
-import { INITIAL_PLAYER_STATE, GAME_TITLE, CLASSES, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY, DYNAMIC_WORLD_EVENT_TURN_MIN, DYNAMIC_WORLD_EVENT_TURN_MAX } from './constants';
+import { GameState, PlayerState, GameData, Choice, Origin, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary, Enemy, NPC } from './types';
+import { INITIAL_PLAYER_STATE, GAME_TITLE, ORIGINS, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY, DYNAMIC_WORLD_EVENT_TURN_MIN, DYNAMIC_WORLD_EVENT_TURN_MAX, BASE_STATS_BEFORE_POINT_BUY, OUTER_GODS, PERSONALITIES } from './constants';
 import { GameAIService } from './services/geminiService';
 import NarrativePanel from './components/NarrativePanel';
 import CombatPanel from './components/CombatPanel';
@@ -14,6 +15,7 @@ import EquipmentScreen from './components/EquipmentScreen';
 import InfoTabsPanel from './components/InfoTabsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
 import CustomJourneyScreen from './components/CustomJourneyScreen';
+import CreatorsWillScreen from './components/CreatorsWillScreen';
 
 // SVG Icons
 const IconInventory = (props: React.SVGProps<SVGSVGElement>) => (
@@ -164,6 +166,27 @@ const App: React.FC = () => {
         let newMaxSanity = currentState.baseMaxSanity;
         let newMaxHunger = currentState.baseMaxHunger;
         let newMaxThirst = currentState.baseMaxThirst;
+        
+        // Personality base stat effects
+        const personality = currentState.personality ? PERSONALITIES[currentState.personality] : null;
+        if (personality) {
+            const pMechanics = personality.effects.mechanics;
+            newAttack += pMechanics.baseAttack || 0;
+            newDefense += pMechanics.baseDefense || 0;
+            newCharisma += pMechanics.baseCharisma || 0;
+            newMaxHp += pMechanics.baseMaxHp || 0;
+            newMaxStamina += pMechanics.baseMaxStamina || 0;
+            newMaxMana += pMechanics.baseMaxMana || 0;
+            newMaxSanity += pMechanics.baseMaxSanity || 0;
+
+            // Conditional personality effects
+            if (pMechanics.conditionalAttackBonus?.condition === 'LOW_HP' && currentState.hp < currentState.maxHp * 0.3) {
+                newAttack += 5;
+            }
+            if (pMechanics.conditionalDefenseBonus?.condition === 'LOW_SANITY' && currentState.sanity < currentState.maxSanity * 0.5) {
+                newDefense += 3;
+            }
+        }
 
         // Equipment stats
         Object.values(currentState.equipment).forEach(item => {
@@ -213,6 +236,17 @@ const App: React.FC = () => {
             newAttack += 1;     // Sức mạnh tuyệt vọng: +1 Tấn công.
             newMaxSanity -= 15; // Ám ảnh thường trực: -15 Tâm trí tối đa.
             newCharisma -= 5;   // Vẻ ngoài đáng sợ: -5 Sức hấp dẫn.
+        }
+
+        // Outer God Mark effects
+        if (currentState.outerGodMark) {
+            const markEffects = OUTER_GODS[currentState.outerGodMark].effects;
+            newAttack += markEffects.attack || 0;
+            newDefense += markEffects.defense || 0;
+            newCharisma += markEffects.charisma || 0;
+            newMaxHp += markEffects.maxHp || 0;
+            newMaxMana += markEffects.maxMana || 0;
+            newMaxSanity += markEffects.maxSanity || 0;
         }
 
         newState.attack = Math.max(0, newAttack);
@@ -271,17 +305,31 @@ const App: React.FC = () => {
                     
                     let loadedPlayerState: PlayerState = savedData.playerState;
                     let loadedGameState: GameState = savedData.gameState;
-                    // Ensure fields exist for older saves
-                    loadedPlayerState = {...INITIAL_PLAYER_STATE, ...loadedPlayerState};
-                    loadedPlayerState.sanctuaries = loadedPlayerState.sanctuaries || []; // Handle old saves
-                    
-                    if (loadedPlayerState.charisma === undefined) {
-                        const classData = CLASSES[loadedPlayerState.class!];
-                        loadedPlayerState.baseCharisma = classData.stats.baseCharisma;
-                        loadedPlayerState.charisma = classData.stats.baseCharisma;
+
+                    // BACKWARDS COMPATIBILITY
+                    if ((loadedPlayerState as any).class && !loadedPlayerState.origin) {
+                        const oldClass = (loadedPlayerState as any).class;
+                        if (oldClass === 'Warrior') loadedPlayerState.origin = 'Cựu Vệ Binh';
+                        else if (oldClass === 'Rogue') loadedPlayerState.origin = 'Kẻ Trộm Vặt';
+                        else if (oldClass === 'Scholar') loadedPlayerState.origin = 'Tập Sự Viện Hàn Lâm';
+                        else loadedPlayerState.origin = 'Người Sống Sót';
+                        delete (loadedPlayerState as any).class;
+                        addLogEntry("Tệp lưu cũ đã được chuyển đổi sang hệ thống Nguồn Gốc mới.");
+                    }
+                    if(!loadedPlayerState.baseAttack) {
+                        loadedPlayerState = {...BASE_STATS_BEFORE_POINT_BUY, ...loadedPlayerState};
                     }
 
-                    // Compatibility for saves before Affection system
+
+                    // Ensure fields exist for older saves
+                    loadedPlayerState = {...INITIAL_PLAYER_STATE, ...loadedPlayerState};
+                    loadedPlayerState.sanctuaries = loadedPlayerState.sanctuaries || []; 
+                    
+                    if (loadedPlayerState.charisma === undefined) {
+                        loadedPlayerState.baseCharisma = loadedPlayerState.baseCharisma || 5;
+                        loadedPlayerState.charisma = loadedPlayerState.charisma || 5;
+                    }
+
                     if (loadedPlayerState.companions && loadedPlayerState.companions.length > 0) {
                         loadedPlayerState.companions = loadedPlayerState.companions.map((c: Companion) => ({
                             ...c,
@@ -289,26 +337,20 @@ const App: React.FC = () => {
                         }));
                     }
                     
-                    // Compatibility for saves before Dynamic World system
                     if (loadedGameState.nextDynamicWorldEventTurn === undefined) {
                         loadedGameState.nextDynamicWorldEventTurn = loadedGameState.turn + DYNAMIC_WORLD_EVENT_TURN_MIN + Math.floor(Math.random() * (DYNAMIC_WORLD_EVENT_TURN_MAX - DYNAMIC_WORLD_EVENT_TURN_MIN + 1));
                     }
-                    // Compatibility for saves before Combat system
-                    if (loadedGameState.enemies === undefined) {
-                        loadedGameState.enemies = [];
-                    }
-                    if (loadedGameState.combatLog === undefined) {
-                        loadedGameState.combatLog = [];
-                    }
-                     if (loadedGameState.npcsInScene === undefined) {
-                        loadedGameState.npcsInScene = [];
-                    }
-                    // Compatibility for custom journey saves
+                    if (loadedGameState.enemies === undefined) loadedGameState.enemies = [];
+                    if (loadedGameState.combatLog === undefined) loadedGameState.combatLog = [];
+                    if (loadedGameState.npcsInScene === undefined) loadedGameState.npcsInScene = [];
                     loadedGameState.customJourneyPrompt = loadedGameState.customJourneyPrompt || '';
                     loadedGameState.isCreatorsWillActive = loadedGameState.isCreatorsWillActive || false;
+                    loadedPlayerState.outerGodMark = loadedPlayerState.outerGodMark || null;
+                    loadedPlayerState.godFragments = loadedPlayerState.godFragments || 0;
+
 
                     setPlayerState(recalculateStats(loadedPlayerState));
-                    setGameState(loadedGameState); // This will trigger the useEffect to create the AI service
+                    setGameState(loadedGameState); 
                     setLastTurnTokenUsage(0);
                     
                     const msg = "Đã tải lại trò chơi từ điểm lưu cuối cùng.";
@@ -402,7 +444,7 @@ const App: React.FC = () => {
                 ...prevState,
                 phase: gameData.gameState,
                 narrative: gameData.narrative,
-                choices: gameData.choices,
+                choices: gameData.choices || [],
                 turn: newTurn,
                 nextDynamicWorldEventTurn: nextEventTurn,
                 enemies: gameData.enemies || [],
@@ -413,20 +455,59 @@ const App: React.FC = () => {
 
         setPlayerState(prevPlayerState => {
             let newPlayerState = { ...prevPlayerState };
+            let perTurnMessageParts: string[] = [];
+            
+            // Per-turn effects from marks and personalities
+            if (newPlayerState.outerGodMark === 'ALL_MOTHER' && newPlayerState.hp < newPlayerState.maxHp) {
+                newPlayerState.hp = Math.min(newPlayerState.maxHp, newPlayerState.hp + 2);
+                perTurnMessageParts.push('Vết thương của bạn tự liền lại một chút.');
+            }
+            if (newPlayerState.outerGodMark === 'SILENT_WATCHER' && newPlayerState.mana < newPlayerState.maxMana) {
+                newPlayerState.mana = Math.min(newPlayerState.maxMana, newPlayerState.mana + 1);
+                 perTurnMessageParts.push('Năng lượng kỳ lạ chảy vào tâm trí bạn.');
+            }
+            const personality = newPlayerState.personality ? PERSONALITIES[newPlayerState.personality] : null;
+            if (personality?.effects.mechanics.perTurnStaminaRegen?.condition === 'LOW_SANITY' && newPlayerState.sanity < newPlayerState.maxSanity * 0.3) {
+                const regenAmount = personality.effects.mechanics.perTurnStaminaRegen.amount;
+                newPlayerState.stamina = Math.min(newPlayerState.maxStamina, newPlayerState.stamina + regenAmount);
+                perTurnMessageParts.push('Sự tuyệt vọng mang lại cho bạn một sức bền kỳ lạ.');
+            }
+            if(perTurnMessageParts.length > 0){
+                setTimeout(() => addLogEntry(perTurnMessageParts.join(' ')), 100);
+            }
+
 
             if (gameData.statusUpdate) {
-                const newHp = Math.max(0, newPlayerState.hp + (gameData.statusUpdate.hpChange || 0));
-                const newStamina = Math.max(0, Math.min(newPlayerState.maxStamina, newPlayerState.stamina + (gameData.statusUpdate.staminaChange || 0)));
-                const newMana = Math.max(0, Math.min(newPlayerState.maxMana, newPlayerState.mana + (gameData.statusUpdate.manaChange || 0)));
-                const newSanity = Math.max(0, Math.min(newPlayerState.maxSanity, newPlayerState.sanity + (gameData.statusUpdate.sanityChange || 0)));
-                const newHunger = Math.max(0, Math.min(newPlayerState.maxHunger, newPlayerState.hunger + (gameData.statusUpdate.hungerChange || 0)));
-                const newThirst = Math.max(0, Math.min(newPlayerState.maxThirst, newPlayerState.thirst + (gameData.statusUpdate.thirstChange || 0)));
-                const newCurrency = newPlayerState.currency + (gameData.statusUpdate.currencyChange || 0);
-                const newReputation = newPlayerState.reputation + (gameData.statusUpdate.reputationChange || 0);
-                const newAppearance = gameData.statusUpdate.appearanceChange || newPlayerState.appearance;
+                let {
+                    hpChange = 0, staminaChange = 0, manaChange = 0, sanityChange = 0,
+                    hungerChange = 0, thirstChange = 0, currencyChange = 0,
+                    reputationChange = 0, godFragmentsChange = 0, 
+                    appearanceChange = newPlayerState.appearance
+                } = gameData.statusUpdate;
 
+                // Apply personality-based modifications
+                if (personality) {
+                    const pMechanics = personality.effects.mechanics;
+                    if (pMechanics.resistsSanityLoss && sanityChange < 0) {
+                        sanityChange *= (1 - pMechanics.resistsSanityLoss);
+                        sanityChange = Math.round(sanityChange);
+                    }
+                    if (pMechanics.blocksReputationGain && reputationChange > 0) {
+                        reputationChange = 0;
+                    }
+                }
 
-                newPlayerState = { ...newPlayerState, hp: newHp, stamina: newStamina, mana: newMana, sanity: newSanity, hunger: newHunger, thirst: newThirst, currency: newCurrency, reputation: newReputation, appearance: newAppearance };
+                const newHp = Math.max(0, newPlayerState.hp + hpChange);
+                const newStamina = Math.max(0, Math.min(newPlayerState.maxStamina, newPlayerState.stamina + staminaChange));
+                const newMana = Math.max(0, Math.min(newPlayerState.maxMana, newPlayerState.mana + manaChange));
+                const newSanity = Math.max(0, Math.min(newPlayerState.maxSanity, newPlayerState.sanity + sanityChange));
+                const newHunger = Math.max(0, Math.min(newPlayerState.maxHunger, newPlayerState.hunger + hungerChange));
+                const newThirst = Math.max(0, Math.min(newPlayerState.maxThirst, newPlayerState.thirst + thirstChange));
+                const newCurrency = newPlayerState.currency + currencyChange;
+                const newReputation = newPlayerState.reputation + reputationChange;
+                const newGodFragments = newPlayerState.godFragments + godFragmentsChange;
+
+                newPlayerState = { ...newPlayerState, hp: newHp, stamina: newStamina, mana: newMana, sanity: newSanity, hunger: newHunger, thirst: newThirst, currency: newCurrency, reputation: newReputation, appearance: appearanceChange, godFragments: newGodFragments };
                 
                 if (gameData.statusUpdate.isMarked && !newPlayerState.isMarked) {
                     newPlayerState.isMarked = true;
@@ -434,7 +515,7 @@ const App: React.FC = () => {
                         const markMessage = "Một cảm giác nóng rát khắc vào da thịt bạn. Bạn đã bị đánh dấu. Bóng tối giờ đây sẽ biết tên bạn.";
                         addLogEntry(markMessage);
                         setNotification(markMessage);
-                    }, 50); // Delay slightly to not collide with other notifications
+                    }, 50);
                 }
                 
                 if (gameData.statusUpdate.markRemoved) {
@@ -453,6 +534,29 @@ const App: React.FC = () => {
                         addLogEntry(pactMessage);
                         setNotification(pactMessage);
                     }, 50);
+                }
+
+                if (gameData.statusUpdate.outerGodMarkGained) {
+                    const newMark = gameData.statusUpdate.outerGodMarkGained;
+                    newPlayerState.outerGodMark = newMark;
+                    setTimeout(() => {
+                        const markInfo = OUTER_GODS[newMark];
+                        const markMessage = `Bạn đã thu hút sự chú ý của một Ngoại Thần. ${markInfo.markName} giờ khắc sâu vào linh hồn bạn.`;
+                        addLogEntry(markMessage);
+                        setNotification(markMessage);
+                    }, 50);
+                }
+                if (gameData.statusUpdate.outerGodMarkRemoved) {
+                    const oldMark = newPlayerState.outerGodMark;
+                    newPlayerState.outerGodMark = null;
+                    if (oldMark) {
+                        setTimeout(() => {
+                             const markInfo = OUTER_GODS[oldMark];
+                            const unmarkMessage = `Mối liên kết của bạn với ${markInfo.markName} đã bị cắt đứt. Bạn cảm thấy một sự trống rỗng quen thuộc.`;
+                            addLogEntry(unmarkMessage);
+                            setNotification(unmarkMessage);
+                        }, 50);
+                    }
                 }
 
                 if (gameData.statusUpdate.bodyPartInjuries && gameData.statusUpdate.bodyPartInjuries.length > 0) {
@@ -527,7 +631,7 @@ const App: React.FC = () => {
               newPlayerState = { ...newPlayerState, skillCooldowns: newCooldowns };
             }
 
-            if (gameData.companionsAdded) {
+            if (gameData.companionsAdded && gameData.companionsAdded.length > 0) {
                 const newCompanions = gameData.companionsAdded.map(c => ({
                     ...c,
                     affection: c.affection === undefined ? 0 : c.affection,
@@ -552,7 +656,7 @@ const App: React.FC = () => {
                 };
             }
 
-            if (gameData.questsAdded) {
+            if (gameData.questsAdded && gameData.questsAdded.length > 0) {
                 newPlayerState = { ...newPlayerState, quests: [...newPlayerState.quests, ...gameData.questsAdded] };
             }
             if (gameData.questUpdates) {
@@ -565,8 +669,13 @@ const App: React.FC = () => {
                 };
             }
             
-            if (gameData.sanctuariesAdded) {
-                newPlayerState = { ...newPlayerState, sanctuaries: [...newPlayerState.sanctuaries, ...gameData.sanctuariesAdded] };
+            if (gameData.sanctuariesAdded && gameData.sanctuariesAdded.length > 0) {
+                const newSanctuariesWithDefaults = gameData.sanctuariesAdded.map(s => ({
+                    ...s,
+                    residents: s.residents || [],
+                    improvements: s.improvements || [],
+                }));
+                newPlayerState = { ...newPlayerState, sanctuaries: [...newPlayerState.sanctuaries, ...newSanctuariesWithDefaults] };
             }
             if (gameData.sanctuaryUpdates) {
                 newPlayerState = {
@@ -577,8 +686,8 @@ const App: React.FC = () => {
                             let updatedSanctuary = { ...s };
                             if (update.level !== undefined) updatedSanctuary.level = update.level;
                             if (update.hopeChange !== undefined) updatedSanctuary.hope = Math.max(0, Math.min(100, s.hope + update.hopeChange));
-                            if (update.addResident) updatedSanctuary.residents = [...s.residents, update.addResident];
-                            if (update.addImprovement) updatedSanctuary.improvements = [...s.improvements, update.addImprovement];
+                            if (update.addResident) updatedSanctuary.residents = [...(s.residents || []), update.addResident];
+                            if (update.addImprovement) updatedSanctuary.improvements = [...(s.improvements || []), update.addImprovement];
                             if (update.description) updatedSanctuary.description = update.description;
                             if (update.name) updatedSanctuary.name = update.name;
                             return updatedSanctuary;
@@ -640,6 +749,10 @@ const App: React.FC = () => {
         if (gameData.itemsFound && gameData.itemsFound.length > 0) {
             const itemNames = gameData.itemsFound.map(item => item.name).join(', ');
             notificationParts.push(`Bạn đã tìm thấy: ${itemNames}.`);
+        }
+        const godFragmentsChange = gameData.statusUpdate?.godFragmentsChange || 0;
+        if (godFragmentsChange > 0) {
+            notificationParts.push(`Bạn đã tìm thấy một Mảnh Vỡ Thần Thánh! Cơn thịnh nộ của các Ngoại Thần đang dâng lên.`);
         }
         if (gameData.skillsLearned && gameData.skillsLearned.length > 0) {
             notificationParts.push(`Kỹ năng mới: ${gameData.skillsLearned.map(s => s.name).join(', ')}!`);
@@ -998,27 +1111,45 @@ const App: React.FC = () => {
         setIsNewGameConfirmOpen(false);
     }, [setIsNewGameConfirmOpen]);
 
-    const handleCharacterCreation = useCallback((details: { name: string; bio: string; characterClass: CharacterClass; difficulty: Difficulty; gender: Gender; personality: string; goal: string; }, isCreatorsWill = false) => {
-        const { name, bio, characterClass, difficulty, gender, personality, goal } = details;
+    const handleCharacterCreation = useCallback((details: {
+        name: string; bio: string; origin: Origin; difficulty: Difficulty; gender: Gender; personality: string; goal: string; finalStats: Record<keyof PlayerState, number>
+    }, isCreatorsWill = false) => {
+        const { name, bio, origin, difficulty, gender, personality, goal, finalStats } = details;
         
-        const classData = CLASSES[characterClass];
-        const baseState = {
+        const originData = ORIGINS[origin];
+        const newProficiency = {...INITIAL_PLAYER_STATE.proficiency};
+        if(originData.bonuses.startingProficiency) {
+            const {type, xp} = originData.bonuses.startingProficiency;
+            newProficiency[type] = { ...newProficiency[type], xp: newProficiency[type].xp + xp };
+        }
+
+        let baseState: PlayerState = {
             ...INITIAL_PLAYER_STATE,
             name,
             bio,
-            class: characterClass,
+            origin,
             gender,
             personality,
             goal,
-            ...classData.stats,
-            hp: classData.stats.baseMaxHp,
-            stamina: classData.stats.baseMaxStamina,
-            mana: classData.stats.baseMaxMana,
-            sanity: classData.stats.baseMaxSanity,
-            hunger: classData.stats.baseMaxHunger,
-            thirst: classData.stats.baseMaxThirst,
-            charisma: classData.stats.baseCharisma,
+            baseAttack: finalStats.baseAttack,
+            baseDefense: finalStats.baseDefense,
+            baseCharisma: finalStats.baseCharisma,
+            baseMaxHp: finalStats.baseMaxHp,
+            baseMaxStamina: finalStats.baseMaxStamina,
+            baseMaxMana: finalStats.baseMaxMana,
+            baseMaxSanity: finalStats.baseMaxSanity,
+            hp: finalStats.baseMaxHp,
+            stamina: finalStats.baseMaxStamina,
+            mana: finalStats.baseMaxMana,
+            sanity: finalStats.baseMaxSanity,
+            proficiency: newProficiency
         };
+
+        const personalityData = PERSONALITIES[personality];
+        if (personalityData?.effects.mechanics.initialInjury) {
+            const { part, level } = personalityData.effects.mechanics.initialInjury;
+            baseState.bodyStatus[part] = level;
+        }
         
         setPlayerState(recalculateStats(baseState));
         setLastTurnTokenUsage(0);
@@ -1056,7 +1187,7 @@ const App: React.FC = () => {
                     }
                     
                     // Construct the initial prompt using the latest player state from the ref.
-                    const { name, class: characterClass, gender, personality, goal, bio } = playerStateRef.current;
+                    const { name, origin, gender, personality, goal, bio } = playerStateRef.current;
                     const goalPrompt = goal
                         ? `và mục tiêu chính của họ là "${goal}"`
                         : "và họ đang tìm kiếm mục tiêu cho mình trong thế giới hoang tàn này";
@@ -1064,7 +1195,7 @@ const App: React.FC = () => {
                         ? 'Bắt đầu câu chuyện dựa trên bối cảnh tùy chỉnh đã được cung cấp trong system prompt.'
                         : 'Tôi tỉnh dậy trong một tàn tích hoang vắng.';
 
-                    const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${characterClass} ${gender}. Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". ${startingLocationPrompt} Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
+                    const initialPrompt = `Nhân vật của tôi tên là ${name}, một ${gender} có nguồn gốc là "${origin}". Tính cách của họ là ${personality}, ${goalPrompt}. Tiểu sử: "${bio || 'Một quá khứ bị che giấu trong bí ẩn.'}". ${startingLocationPrompt} Hãy mô tả những khoảnh khắc đầu tiên của tôi, môi trường xung quanh, và đưa ra những lựa chọn đầu tiên dựa trên những đặc điểm này. Cho tôi bắt đầu với một bình thuốc hồi máu đơn giản.`;
 
                     // Explicitly create the service here to avoid race conditions.
                     const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent, gameState.customJourneyPrompt, gameState.isCreatorsWillActive);
@@ -1142,11 +1273,11 @@ const App: React.FC = () => {
 
 
     const handleDeathAndRestart = useCallback(() => {
-        if (gameState.difficulty === 'Ác Mộng' || gameState.difficulty === 'Địa Ngục' || gameState.difficulty === 'Đày Đoạ' || gameState.isCreatorsWillActive) {
+        if (gameState.difficulty === 'Ác Mộng' || gameState.difficulty === 'Địa Ngục' || gameState.difficulty === 'Đày Đoạ') {
             try {
                 localStorage.removeItem(SAVE_KEY);
                 setSaveFileExists(false);
-                addLogEntry(`Tiến trình đã được xóa do nhân vật gục ngã trong chế độ ${gameState.isCreatorsWillActive ? 'Ý Chí Sáng Thế' : gameState.difficulty}.`);
+                addLogEntry(`Tiến trình đã được xóa do nhân vật gục ngã trong chế độ ${gameState.difficulty}.`);
             } catch (e) {
                 console.error("Không thể xóa dữ liệu đã lưu khi chết:", e);
             }
@@ -1154,7 +1285,7 @@ const App: React.FC = () => {
             addLogEntry("Bạn đã gục ngã. Tải lại trò chơi để tiếp tục từ điểm lưu cuối cùng của bạn.");
         }
         restartGame();
-    }, [restartGame, addLogEntry, setSaveFileExists, gameState.difficulty, gameState.isCreatorsWillActive]);
+    }, [restartGame, addLogEntry, setSaveFileExists, gameState.difficulty]);
 
     const handleRequestExit = useCallback(() => {
         setIsExitConfirmOpen(true);
@@ -1210,26 +1341,32 @@ const App: React.FC = () => {
     const handleJourneyCreate = useCallback((prompt: string) => {
         setGameState(prevState => ({ ...prevState, phase: 'CHARACTER_CREATION', customJourneyPrompt: prompt }));
     }, []);
+    
+    const handleGoToCreatorsWill = useCallback(() => {
+        setGameState(prevState => ({ ...prevState, phase: 'CREATORS_WILL_SETUP' }));
+    }, []);
+    
+    const handleBackToCharCreation = useCallback(() => {
+        setGameState(prevState => ({ ...prevState, phase: 'CHARACTER_CREATION' }));
+    }, []);
 
     const handleStartCombatTest = useCallback(() => {
-        const testPlayerClass: CharacterClass = 'Warrior';
-        const classData = CLASSES[testPlayerClass];
+        const testOrigin: Origin = 'Cựu Vệ Binh';
+        const originData = ORIGINS[testOrigin];
         const initialTestPlayerState = {
             ...INITIAL_PLAYER_STATE,
             name: "Chiến Binh Thử Nghiệm",
             bio: "Một linh hồn được triệu hồi chỉ để chiến đấu và chết.",
-            class: testPlayerClass,
+            origin: testOrigin,
             gender: 'Khác' as Gender,
             personality: "Dũng Cảm",
             goal: "Sống sót qua trận chiến này.",
-            ...classData.stats,
-            hp: classData.stats.baseMaxHp,
-            stamina: classData.stats.baseMaxStamina,
-            mana: classData.stats.baseMaxMana,
-            sanity: classData.stats.baseMaxSanity,
-            hunger: classData.stats.baseMaxHunger,
-            thirst: classData.stats.baseMaxThirst,
-            charisma: classData.stats.baseCharisma,
+            ...BASE_STATS_BEFORE_POINT_BUY,
+            hp: BASE_STATS_BEFORE_POINT_BUY.baseMaxHp,
+            stamina: BASE_STATS_BEFORE_POINT_BUY.baseMaxStamina,
+            mana: BASE_STATS_BEFORE_POINT_BUY.baseMaxMana,
+            sanity: BASE_STATS_BEFORE_POINT_BUY.baseMaxSanity,
+            charisma: BASE_STATS_BEFORE_POINT_BUY.baseCharisma,
         };
         setPlayerState(recalculateStats(initialTestPlayerState));
         setLastTurnTokenUsage(0);
@@ -1263,7 +1400,7 @@ const App: React.FC = () => {
                     if (!activeApiKey) throw new Error("API Key không hoạt động.");
                     if (!gameState.difficulty) throw new Error("Độ khó chưa được thiết lập.");
 
-                    const initialPrompt = `BẮT ĐẦU TRẬN CHIẾN THỬ NGHIỆM. Người chơi là một Chiến Binh. Tạo ra một kẻ thù (ví dụ: một con Ghoul hoặc Bộ Xương) với các bộ phận cơ thể và HP đầy đủ. Mô tả sự bắt đầu của trận chiến, tình trạng của kẻ thù và đưa ra các lựa chọn chiến thuật đầu tiên cho người chơi. Trạng thái game phải là 'COMBAT'.`;
+                    const initialPrompt = `BẮT ĐẦU TRẬN CHIẾN THỬ NGHIỆM. Người chơi có nguồn gốc là một Cựu Vệ Binh. Tạo ra một kẻ thù (ví dụ: một con Ghoul hoặc Bộ Xương) với các bộ phận cơ thể và HP đầy đủ. Mô tả sự bắt đầu của trận chiến, tình trạng của kẻ thù và đưa ra các lựa chọn chiến thuật đầu tiên cho người chơi. Trạng thái game phải là 'COMBAT'.`;
 
                     const service = new GameAIService(gameState.difficulty, activeApiKey, isMatureContent, undefined, false);
                     gameAIService.current = service;
@@ -1331,8 +1468,12 @@ const App: React.FC = () => {
         return <CustomJourneyScreen onJourneyCreate={handleJourneyCreate} onBack={restartGame} />;
     }
 
+    if (gameState.phase === 'CREATORS_WILL_SETUP') {
+        return <CreatorsWillScreen onCharacterCreate={handleCharacterCreation} onBack={handleBackToCharCreation} />;
+    }
+
     if (gameState.phase === 'CHARACTER_CREATION') {
-        return <CharacterCreationScreen onCharacterCreate={handleCharacterCreation} activeApiKey={activeApiKey} />;
+        return <CharacterCreationScreen onCharacterCreate={handleCharacterCreation} activeApiKey={activeApiKey} onGoToCreatorsWill={handleGoToCreatorsWill} />;
     }
 
     if (gameState.phase === 'GAMEOVER') {

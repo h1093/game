@@ -1,11 +1,11 @@
 
-import { PlayerState, CharacterClass, Difficulty, Gender, WeaponType, BodyPart } from './types';
+
+import { PlayerState, Origin, Difficulty, Gender, WeaponType, BodyPart, OuterGodMark } from './types';
 
 export const SAVE_KEY = "darkFantasyRPGSaveData";
 export const API_KEYS_STORAGE_KEY = "darkFantasyApiKeys";
 export const API_SOURCE_STORAGE_KEY = "darkFantasyApiSource";
 export const GAME_TITLE = "Lời Nguyền Của Vực Thẳm";
-export const GAME_INTRO = "Bạn tỉnh dậy trong một vương quốc của hoàng hôn và hoang tàn. Không khí đặc quánh bụi của thời gian và mùi của đất sau mưa trên đá lạnh. Ký ức của bạn là một tấm thảm rách nát, chỉ còn lại một sợi duy nhất: một cái tên, được thì thầm trên gió... tên của bạn. Trước mắt bạn, những con đường rẽ vào bóng tối đang bao trùm. Bạn sẽ làm gì?";
 
 export const WEAPON_TYPES: WeaponType[] = ['SWORD', 'AXE', 'DAGGER', 'MACE', 'SPEAR', 'BOW', 'STAFF', 'UNARMED'];
 export const BODY_PARTS: BodyPart[] = ['head', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'];
@@ -13,8 +13,25 @@ export const BODY_PARTS: BodyPart[] = ['head', 'torso', 'leftArm', 'rightArm', '
 export const DYNAMIC_WORLD_EVENT_TURN_MIN = 7;
 export const DYNAMIC_WORLD_EVENT_TURN_MAX = 15;
 
+export const DIFFICULTY_POINT_BUY: Record<Difficulty, number> = {
+    'Thử Thách': 30,
+    'Ác Mộng': 20,
+    'Đày Đoạ': 15,
+    'Địa Ngục': 10,
+};
+
+export const BASE_STATS_BEFORE_POINT_BUY = {
+    baseAttack: 5,
+    baseDefense: 5,
+    baseCharisma: 5,
+    baseMaxHp: 70,
+    baseMaxStamina: 70,
+    baseMaxMana: 20,
+    baseMaxSanity: 60,
+};
 
 export const INITIAL_PLAYER_STATE: PlayerState = {
+    ...BASE_STATS_BEFORE_POINT_BUY,
     hp: 0,
     maxHp: 0,
     stamina: 0,
@@ -23,26 +40,19 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
     maxMana: 0,
     sanity: 0,
     maxSanity: 0,
-    hunger: 0,
-    maxHunger: 0,
-    thirst: 0,
-    maxThirst: 0,
+    hunger: 100,
+    maxHunger: 100,
+    thirst: 100,
+    maxThirst: 100,
+    baseMaxHunger: 100,
+    baseMaxThirst: 100,
     attack: 0,
     defense: 0,
     charisma: 0,
-    baseAttack: 0,
-    baseDefense: 0,
-    baseCharisma: 0,
-    baseMaxHp: 0,
-    baseMaxStamina: 0,
-    baseMaxMana: 0,
-    baseMaxSanity: 0,
-    baseMaxHunger: 0,
-    baseMaxThirst: 0,
     currency: 0,
     name: '',
     bio: '',
-    class: null,
+    origin: null,
     gender: null,
     personality: '',
     goal: '',
@@ -72,36 +82,78 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
     },
     isMarked: false,
     hasSuccubusPact: false,
+    outerGodMark: null,
+    godFragments: 0,
     reputation: 0,
     appearance: 'DIRTY',
     sanctuaries: [],
 };
 
-export const CLASSES: Record<CharacterClass, { 
-    description: string; 
-    stats: { baseMaxHp: number; baseMaxStamina: number; baseMaxMana: number; baseMaxSanity: number; baseMaxHunger: number; baseMaxThirst: number; baseAttack: number; baseDefense: number; baseCharisma: number; };
-    strengths: string[];
-    weaknesses: string[];
+export const ORIGINS: Record<Origin, {
+    name: string;
+    description: string;
+    bonuses: {
+        baseAttack?: number;
+        baseDefense?: number;
+        baseMaxHp?: number;
+        baseMaxStamina?: number;
+        baseMaxMana?: number;
+        baseMaxSanity?: number;
+        baseCharisma?: number;
+        startingProficiency?: { type: WeaponType, xp: number };
+    }
 }> = {
-  Warrior: {
-    description: "Được huấn luyện trong nghệ thuật đổ máu, bạn là một bức tường thành chống lại bóng tối, được định hình bởi sức mạnh và sự kiên cường.",
-    stats: { baseMaxHp: 120, baseMaxStamina: 100, baseMaxMana: 20, baseMaxSanity: 80, baseMaxHunger: 100, baseMaxThirst: 100, baseAttack: 15, baseDefense: 10, baseCharisma: 5 },
-    strengths: ["Sức khỏe và phòng thủ cao.", "Hiệu quả trong cận chiến.", "Chịu đựng được nhiều sát thương."],
-    weaknesses: ["Kém linh hoạt.", "Hầu như không có khả năng phép thuật.", "Sức hấp dẫn thấp."]
+  'Cựu Vệ Binh': {
+    name: "Cựu Vệ Binh",
+    description: "Từng là một phần của bức tường khiên bảo vệ một thành phố đã mất, giờ đây bạn lang thang với những ký ức về kỷ luật và thép.",
+    bonuses: { baseAttack: 2, baseDefense: 3, baseMaxHp: 10, startingProficiency: { type: 'SWORD', xp: 25 } }
   },
-  Rogue: {
-    description: "Một sinh vật của bóng tối và xảo quyệt, bạn phát triển mạnh ở nơi người khác chùn bước, tấn công từ bóng tối với độ chính xác chết người.",
-    stats: { baseMaxHp: 100, baseMaxStamina: 120, baseMaxMana: 40, baseMaxSanity: 70, baseMaxHunger: 100, baseMaxThirst: 100, baseAttack: 12, baseDefense: 8, baseCharisma: 10 },
-    strengths: ["Nhanh nhẹn và né tránh tốt.", "Gây sát thương chí mạng cao.", "Giỏi trong việc tấn công bất ngờ và sử dụng mẹo."],
-    weaknesses: ["Sức khỏe thấp, dễ bị hạ gục.", "Phụ thuộc vào việc tấn công trước.", "Gặp khó khăn trong các trận chiến kéo dài."]
+  'Kẻ Trộm Vặt': {
+    name: "Kẻ Trộm Vặt",
+    description: "Lớn lên trong những con hẻm tối tăm, đôi tay của bạn nhanh nhẹn và đôi mắt của bạn nhìn thấy những gì người khác bỏ lỡ.",
+    bonuses: { baseMaxStamina: 15, baseCharisma: 2, startingProficiency: { type: 'DAGGER', xp: 25 } }
   },
-  Scholar: {
-    description: "Kiến thức là vũ khí và là lá chắn của bạn. Bạn sử dụng những truyền thuyết bị lãng quên để làm sáng tỏ những bí ẩn nghiệt ngã của thế giới.",
-    stats: { baseMaxHp: 80, baseMaxStamina: 80, baseMaxMana: 100, baseMaxSanity: 100, baseMaxHunger: 100, baseMaxThirst: 100, baseAttack: 8, baseDefense: 5, baseCharisma: 15 },
-    strengths: ["Sử dụng phép thuật mạnh mẽ.", "Sức hấp dẫn cao, có tài thuyết phục.", "Có thể khai thác điểm yếu của kẻ thù."],
-    weaknesses: ["Cực kỳ yếu trong cận chiến.", "Sức khỏe và phòng thủ thấp nhất.", "Phụ thuộc nhiều vào mana."]
+  'Tập Sự Viện Hàn Lâm': {
+    name: "Tập Sự Viện Hàn Lâm",
+    description: "Bạn đã thoáng thấy những bí mật bị cấm đoán trong các thư viện bụi bặm trước khi mọi thứ sụp đổ. Kiến thức vẫn còn đó, chờ được sử dụng.",
+    bonuses: { baseMaxMana: 20, baseMaxSanity: 10, startingProficiency: { type: 'STAFF', xp: 25 } }
+  },
+  'Người Sống Sót': {
+    name: "Người Sống Sót",
+    description: "Bạn không có quá khứ huy hoàng hay kỹ năng đặc biệt. Bạn chỉ đơn giản là đã sống sót ở nơi người khác đã chết, nhờ vào sự may mắn và một ý chí sắt đá.",
+    bonuses: { baseMaxHp: 5, baseMaxStamina: 5, baseMaxSanity: 5 }
   }
 };
+
+export const OUTER_GODS: Record<OuterGodMark, {
+    markName: string;
+    markDescription: string;
+    effects: {
+        maxHp?: number;
+        defense?: number;
+        maxSanity?: number;
+        maxMana?: number;
+        attack?: number;
+        charisma?: number;
+    }
+}> = {
+    'ALL_MOTHER': {
+        markName: "Ấn Ký Sinh Sôi",
+        markDescription: "Sự sống tìm thấy một con đường, ngay cả trong những cơ thể không sẵn sàng. Thịt của bạn đan xen, tự chữa lành với tốc độ không tự nhiên (+2 HP/lượt), nhưng nó trở nên mềm hơn, dễ bị tổn thương hơn. (+10 Máu tối đa, -5 Phòng thủ)",
+        effects: { maxHp: 10, defense: -5 }
+    },
+    'SILENT_WATCHER': {
+        markName: "Con Mắt Vĩnh Cửu",
+        markDescription: "Bạn đã nhìn vào vực thẳm của tri thức, và nó đã nhìn lại. Tâm trí của bạn mở rộng với những khả năng đáng sợ (+1 Mana/lượt), nhưng một phần con người của bạn đã bị xói mòn. (+15 Mana tối đa, -15 Tâm trí tối đa)",
+        effects: { maxMana: 15, maxSanity: -15 }
+    },
+    'ABYSSAL_HUNGER': {
+        markName: "Cái Nhai Vô Độ",
+        markDescription: "Một cơn đói không đáy gặm nhấm bạn từ bên trong. Nó mang lại cho bạn sức mạnh hoang dã, nhưng ánh mắt của người khác chỉ nhìn thấy một con quái vật đang đói. (+5 Tấn công, -5 Sức hấp dẫn, Đói và Khát nhanh hơn)",
+        effects: { attack: 5, charisma: -5 }
+    }
+};
+
 
 export const DIFFICULTIES: Record<Difficulty, { description: string; }> = {
     'Thử Thách': {
@@ -124,9 +176,117 @@ export const GENDERS: Record<Gender, string> = {
     'Khác': 'Khác',
 };
 
-export const PERSONALITIES: string[] = [
-    "Dũng Cảm", "Thận Trọng", "Tò Mò", "Hoài Nghi", "Lý Trí", "Bốc Đồng", "Hận Thù", "Tàn Nhẫn", "Tuyệt Vọng", "Hoang Tưởng", "Vô Cảm", "Tự Hủy Hoại", "Bị Ô Uế", "Lãnh Cảm Bệnh Hoạn", "Tự Ghê Tởm"
-];
+export const PERSONALITIES: Record<string, {
+  name: string;
+  description: string;
+  effects: {
+    positive: string;
+    negative: string;
+    mechanics: {
+        baseAttack?: number;
+        baseDefense?: number;
+        baseCharisma?: number;
+        baseMaxHp?: number;
+        baseMaxStamina?: number;
+        baseMaxMana?: number;
+        baseMaxSanity?: number;
+        
+        // Conditional effects (handled in recalculateStats)
+        conditionalAttackBonus?: { description: string; condition: 'LOW_HP' | 'LOW_SANITY' };
+        conditionalDefenseBonus?: { description: string; condition: 'LOW_SANITY' };
+
+        // Special rules (handled in App.tsx logic)
+        resistsSanityLoss?: number; // e.g., 0.5 for 50% resistance
+        blocksReputationGain?: boolean;
+        initialInjury?: { part: BodyPart, level: 'INJURED' | 'CRITICAL' };
+        perTurnStaminaRegen?: { condition: 'LOW_SANITY', amount: number };
+    }
+  }
+}> = {
+    "Dũng Cảm": {
+        name: "Dũng Cảm",
+        description: "Đối mặt với bóng tối với một trái tim không hề nao núng, ngay cả khi đó là một sự điên rồ.",
+        effects: {
+            positive: "+2 Tấn Công. Có nhiều khả năng nhận được các lựa chọn đối đầu trực diện.",
+            negative: "-2 Phòng Thủ. Bạn có xu hướng lao vào nguy hiểm.",
+            mechanics: { baseAttack: 2, baseDefense: -2 }
+        }
+    },
+    "Thận Trọng": {
+        name: "Thận Trọng",
+        description: "Mọi bước đi đều được tính toán. Bạn thà sống sót còn hơn là trở thành một người hùng đã chết.",
+        effects: {
+            positive: "+3 Phòng Thủ. Giảm khả năng bị phục kích hoặc rơi vào bẫy.",
+            negative: "-2 Tấn Công. Bạn do dự trước những hành động liều lĩnh.",
+            mechanics: { baseDefense: 3, baseAttack: -2 }
+        }
+    },
+    "Tò Mò": {
+        name: "Tò Mò",
+        description: "Mọi bí mật đều phải được phơi bày, bất kể cái giá phải trả cho sự tỉnh táo của bạn.",
+        effects: {
+            positive: "Có nhiều khả năng tìm thấy các lối đi ẩn, vật phẩm bí mật và kiến thức bị cấm.",
+            negative: "-10 Tâm Trí Tối Đa. Sự tò mò của bạn thường dẫn bạn đến những cảnh tượng kinh hoàng.",
+            mechanics: { baseMaxSanity: -10 }
+        }
+    },
+    "Hận Thù": {
+        name: "Hận Thù",
+        description: "Lửa hận thù cháy trong lồng ngực, thiêu rụi cả kẻ thù và chính bạn.",
+        effects: {
+            positive: "Tăng mạnh Tấn Công khi máu của bạn xuống thấp, biến cơn đau thành sức mạnh.",
+            negative: "Khó tương tác hòa bình. Các lựa chọn ngoại giao thường bị hạn chế.",
+            mechanics: { conditionalAttackBonus: { description: "+5 Tấn Công khi dưới 30% Máu", condition: 'LOW_HP' } }
+        }
+    },
+    "Tàn Nhẫn": {
+        name: "Tàn Nhẫn",
+        description: "Mục đích biện minh cho phương tiện. Bạn sẽ bước đi trên xác chết để đạt được mục tiêu của mình.",
+        effects: {
+            positive: "Các lựa chọn đe dọa và tàn bạo thường hiệu quả hơn.",
+            negative: "Uy tín của bạn bị giới hạn ở mức tiêu cực. Bạn không bao giờ có thể được thực sự yêu mến.",
+            mechanics: { baseCharisma: -2 }
+        }
+    },
+    "Tuyệt Vọng": {
+        name: "Tuyệt Vọng",
+        description: "Khi không còn gì để mất, bạn tìm thấy một sức mạnh kỳ lạ trong sự trống rỗng.",
+        effects: {
+            positive: "Hồi phục một chút Thể Lực mỗi lượt khi Tâm Trí của bạn gần như cạn kiệt.",
+            negative: "Bắt đầu với Tâm Trí thấp hơn. Thế giới dường như luôn xám xịt.",
+            mechanics: { baseMaxSanity: -15, perTurnStaminaRegen: { condition: 'LOW_SANITY', amount: 2 } }
+        }
+    },
+    "Hoang Tưởng": {
+        name: "Hoang Tưởng",
+        description: "Bóng tối không chỉ ở xung quanh, nó ở trong tâm trí bạn. Mọi thứ đều là một mối đe dọa.",
+        effects: {
+            positive: "Tăng Phòng Thủ khi tâm trí của bạn bất ổn, sự cảnh giác trở thành một loại áo giáp.",
+            negative: "Thường xuyên nhìn thấy hoặc nghe thấy những thứ không có thật (AI sẽ mô tả).",
+            mechanics: { conditionalDefenseBonus: { description: "+3 Phòng Thủ khi dưới 50% Tâm Trí", condition: 'LOW_SANITY' } }
+        }
+    },
+    "Vô Cảm": {
+        name: "Vô Cảm",
+        description: "Những cảm xúc đã chết từ lâu. Những điều kinh hoàng của thế giới chỉ lướt qua bạn như nước chảy.",
+        effects: {
+            positive: "Giảm 50% sát thương Tâm Trí phải nhận. Bạn gần như miễn nhiễm với sợ hãi.",
+            negative: "Không thể hình thành mối quan hệ tình cảm sâu sắc. Tình cảm của đồng đội khó tăng.",
+            mechanics: { resistsSanityLoss: 0.5 }
+        }
+    },
+    "Tự Ghê Tởm": {
+        name: "Tự Ghê Tởm",
+        description: "Bạn nhìn thấy con quái vật trong gương và tin rằng mình không xứng đáng với bất cứ điều gì tốt đẹp.",
+        effects: {
+            positive: "Không có. Đây là một con đường đau khổ.",
+            negative: "Không thể nhận được Uy Tín. Mọi hành động tốt đều bị coi là giả tạo hoặc bị bỏ qua.",
+            mechanics: { blocksReputationGain: true }
+        }
+    }
+};
+
+export const PERSONALITY_NAMES = Object.keys(PERSONALITIES);
 
 export const GOALS: string[] = [
     "Tìm kiếm sự cứu rỗi", "Tích lũy quyền lực", "Khám phá sự thật bị chôn giấu", "Sống sót bằng mọi giá", "Báo thù cho quá khứ", "Thách thức số phận", "Tìm kiếm một vị thần cũ", "Chấm dứt lời nguyền của chính mình", "Chỉ đơn giản là muốn chết", "Thỏa mãn một cơn đói bệnh hoạn", "Tìm kiếm sự thanh tẩy hoặc sự hủy diệt", "Gây ra nỗi đau cho thế giới"

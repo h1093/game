@@ -1,7 +1,9 @@
-export type CharacterClass = 'Warrior' | 'Rogue' | 'Scholar';
+
+export type Origin = 'Cựu Vệ Binh' | 'Kẻ Trộm Vặt' | 'Tập Sự Viện Hàn Lâm' | 'Người Sống Sót';
 export type Difficulty = 'Thử Thách' | 'Ác Mộng' | 'Đày Đoạ' | 'Địa Ngục';
 export type Gender = 'Nam' | 'Nữ' | 'Khác';
 export type WeaponType = 'SWORD' | 'AXE' | 'DAGGER' | 'MACE' | 'SPEAR' | 'BOW' | 'STAFF' | 'UNARMED';
+export type OuterGodMark = 'ALL_MOTHER' | 'SILENT_WATCHER' | 'ABYSSAL_HUNGER';
 
 
 export type ItemType = 'POTION' | 'WEAPON' | 'ARMOR' | 'KEY' | 'MISC' | 'RING' | 'AMULET';
@@ -106,7 +108,7 @@ export interface PlayerState {
     attack: number;
     defense: number;
     charisma: number;
-    // Base stats (from class)
+    // Base stats (from origin + point buy)
     baseAttack: number;
     baseDefense: number;
     baseCharisma: number;
@@ -120,7 +122,7 @@ export interface PlayerState {
     currency: number;
     name: string;
     bio: string;
-    class: CharacterClass | null;
+    origin: Origin | null;
     gender: Gender | null;
     personality: string;
     goal: string;
@@ -134,12 +136,14 @@ export interface PlayerState {
     proficiency: Record<WeaponType, { level: number; xp: number }>;
     isMarked: boolean; // Dấu Hiệu Tế Thần
     hasSuccubusPact: boolean; // Giao Ước Đen Tối
+    outerGodMark: OuterGodMark | null; // Ấn ký của Ngoại Thần
+    godFragments: number; // Số Mảnh Vỡ Thần Thánh đã thu thập
     reputation: number; // Điểm uy tín
     appearance: Appearance; // Vẻ ngoài
     sanctuaries: Sanctuary[];
 }
 
-export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY' | 'CUSTOM_JOURNEY';
+export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY' | 'CUSTOM_JOURNEY' | 'CREATORS_WILL_SETUP';
 
 export interface Choice {
     text: string;
@@ -181,10 +185,13 @@ export interface StatusUpdate {
     currencyChange?: number;
     reputationChange?: number; // Thay đổi uy tín
     appearanceChange?: Appearance; // Thay đổi vẻ ngoài
+    godFragmentsChange?: number; // Số lượng Mảnh Vỡ Thần Thánh người chơi nhận được (thường là 1).
     bodyPartInjuries?: { part: BodyPart; level: InjuryLevel }[];
     isMarked?: boolean; // AI có thể đặt thành true để áp dụng Dấu Hiệu Tế Thần
     markRemoved?: boolean; // AI có thể đặt thành true để gỡ bỏ Dấu Hiệu, chỉ sau một nhiệm vụ cực kỳ khó khăn.
     succubusPactMade?: boolean; // AI có thể đặt thành true để kích hoạt Giao Ước Đen Tối vĩnh viễn.
+    outerGodMarkGained?: OuterGodMark; // AI có thể gán một ấn ký của Ngoại Thần
+    outerGodMarkRemoved?: boolean; // AI có thể xóa bỏ ấn ký của Ngoại Thần
 }
 
 export interface CompanionUpdate {

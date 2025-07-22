@@ -57,6 +57,102 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
             <h2 className="text-3xl font-title text-red-400 border-b-2 border-red-500/30 pb-2">Nhật Ký Cập Nhật</h2>
             
             <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.10: Sự Tha Hóa Của Đức Tin</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[CƠ CHẾ MỚI]</span> **Sự Tha Hóa Của Tín Đồ**: Tín đồ của các Ngoại Thần giờ đây có thể bị chính sức mạnh mà họ tôn thờ nuốt chửng.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[KẺ THÙ MỚI]</span> Trong chiến đấu, một tín đồ có thể mất kiểm soát và **biến đổi** thành một con quái vật gớm ghiếc, đặc trưng cho vị thần của nó (Sự Gớm Ghiếc Bằng Thịt, Nỗi Kinh Hoàng Nhìn Chằm Chằm, Cái Miệng Vực Thẳm), tạo ra các cuộc chạm trán bất ngờ và đầy thử thách.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[CỐT TRUYỆN MÔI TRƯỜNG]</span> Đánh bại những sinh vật này có thể tiết lộ những câu chuyện bi thảm về những kẻ đã bị đức tin của mình hủy hoại, làm tăng thêm chiều sâu kinh dị cho thế giới.
+                    </li>
+                </ul>
+            </div>
+            
+             <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.9: Tiếng Vọng Của Các Vị Thần Cũ</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[ĐẠI TU CỐT TRUYỆN]</span> **Xung Đột Thần Thánh**: Cốt truyện cốt lõi đã được làm rõ. Các Ngoại Thần không còn xung đột với nhau; chúng thống nhất chống lại một mối đe dọa chung: sự hồi sinh của các **Thần Cũ** đã bị lật đổ.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[CƠ CHẾ MỚI]</span> **Mảnh Vỡ Thần Thánh**: Một loại vật phẩm mới đã được thêm vào. Thu thập những mảnh vỡ từ các vị thần đã chết này là một mục tiêu cốt lõi của người chơi.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[HẬU QUẢ]</span> **Cơn Thịnh Nộ Của Vực Thẳm**: Việc thu thập Mảnh Vỡ Thần Thánh sẽ khiến các Ngoại Thần phẫn nộ. Càng có nhiều mảnh vỡ, thế giới càng trở nên thù địch, và cuối cùng bạn sẽ bị đánh **Dấu Hiệu Tế Thần**.
+                    </li>
+                </ul>
+            </div>
+            
+             <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.8: Những Lời Cầu Nguyện Bị Cấm</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[HỆ THỐNG MỚI]</span> **Tôn Giáo & Ngoại Thần**: Thêm vào thế giới 3 Ngoại Thần mới (Mẹ Toàn Năng, Kẻ Lặng Nhìn, Cơn Đói Vực Thẳm), mỗi vị thần có tôn giáo, tín đồ và triết lý riêng.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[CƠ CHẾ MỚI]</span> **Ấn Ký Ngoại Thần**: Người chơi có thể thu hút sự chú ý của một Ngoại Thần thông qua hành động của mình, và được "ban" cho một ấn ký. Mỗi ấn ký mang lại cả lợi ích và bất lợi to lớn, thay đổi vĩnh viễn lối chơi của bạn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[TƯƠNG TÁC SÂU SẮC]</span> Bạn sẽ không chọn một vị thần từ menu. Thay vào đó, bạn phải tự khám phá ra họ thông qua các đền thờ, các nghi lễ hoặc tương tác với các tín đồ trong thế giới game.
+                    </li>
+                </ul>
+            </div>
+            
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.7: Sự Mỏng Manh Của Lý Trí</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-blue-400">[CÂN BẰNG GAMEPLAY]</span> **Tinh Chỉnh Cơ Chế Tâm Trí**: Để giải quyết phản hồi rằng chỉ số Tâm Trí giảm quá nhanh, cơ chế này đã được cân bằng lại.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-green-400">[GIẢM SỰ BÀO MÒN]</span> Việc mất Tâm Trí từ các hoạt động thông thường (chiến đấu, bị thương nhẹ) đã được giảm đáng kể.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-red-400">[TĂNG CƯỜNG CÚ SỐC]</span> Những lần mất Tâm Trí lớn giờ đây được dành riêng cho những sự kiện thực sự kinh hoàng, đặc biệt là khi đối mặt trực tiếp với các Ngoại Thần hoặc các hiện tượng siêu nhiên, làm cho những khoảnh khắc này trở nên nguy hiểm và đáng nhớ hơn.
+                    </li>
+                </ul>
+            </div>
+            
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.6: Ranh Giới Của Sự Điên Loạn</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[CƠ CHẾ MỚI]</span> **Ảo Giác & Mất Trí**: Chỉ số Tâm Trí giờ đây có hậu quả rõ rệt hơn.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-purple-400">[ẢO GIÁC]</span> Khi Tâm Trí của bạn suy giảm, AI Quản Trò sẽ bắt đầu mô tả những ảo giác tinh vi (âm thanh, hình ảnh) và chúng sẽ trở nên tồi tệ hơn khi bạn tiến gần đến sự điên loạn.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-cyan-400">[CƠ HỘI & NGUY HIỂM]</span> Một tâm trí yếu đuối sẽ dễ bị ảnh hưởng bởi các Ngoại Thần hơn, tăng cơ hội nhận được ấn ký của họ.
+                    </li>
+                    <li>
+                        <span className="font-semibold text-green-400">[NƠI TRÚ ẨN]</span> Các Thánh Địa giờ đây là nơi trú ẩn an toàn, giúp bạn khôi phục một lượng lớn Tâm Trí khi nghỉ ngơi.
+                    </li>
+                </ul>
+            </div>
+            
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.5: Bản Chất Của Linh Hồn</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[ĐẠI TU TÍNH CÁCH]</span> **Tính Cách Có Hiệu Ứng**: Lựa chọn tính cách không còn chỉ mang tính hình thức. Mỗi tính cách giờ đây đi kèm với các hiệu ứng cơ chế cụ thể.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[HIỆU ỨNG CƠ CHẾ]</span> Các hiệu ứng bao gồm thay đổi chỉ số bị động (ví dụ: "Thận Trọng" tăng Phòng Thủ, giảm Tấn Công), hiệu ứng theo điều kiện ("Hận Thù" tăng sát thương khi máu thấp), và các quy tắc đặc biệt ("Vô Cảm" kháng sát thương Tâm Trí).
+                    </li>
+                    <li>
+                        <span className="font-semibold text-blue-400">[CẬP NHẬT GIAO DIỆN]</span> Màn hình tạo nhân vật giờ đây hiển thị rõ ràng mô tả và hiệu ứng của mỗi tính cách.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-purple-400">[CẬP NHẬT AI]</span> AI Quản Trò đã được huấn luyện để nhận biết và phản hồi lại tính cách của bạn, điều chỉnh câu chuyện và các lựa chọn cho phù hợp.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
                 <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.4: Biên Niên Sử Chưa Viết</h3>
                 <ul className="list-disc list-inside space-y-3 text-gray-300">
                     <li>
@@ -71,162 +167,6 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
                 </ul>
             </div>
 
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.3: Chân Trời Vỡ Nát</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[ĐẠI TU AI THẾ GIỚI]</span> **BỐI CẢNH MỞ RỘNG**: AI Quản Trò giờ đây được huấn luyện để suy nghĩ như một nhà sử học và người vẽ bản đồ, tạo ra một thế giới rộng lớn vượt ra ngoài tầm mắt của người chơi.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[CHÂN TRỜI XA XĂM]</span> AI sẽ thường xuyên mô tả các địa danh ở xa, các vùng đất khác nhau có thể nhìn thấy từ vị trí của bạn, tạo ra cảm giác về một bản đồ thế giới thực sự.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[THẾ LỰC & PHE PHÁI]</span> Thế giới giờ đây được làm phong phú hơn với các phe phái, đế chế sụp đổ, và các giáo phái bí ẩn. Dấu vết của họ sẽ được tìm thấy trong các truyền thuyết, vật phẩm và các cuộc gặp gỡ.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[LỊCH SỬ SÂU SẮC]</span> Khám phá một thế giới với nhiều lớp lịch sử. Các tàn tích bạn đi qua có thể được xây dựng trên nền của một nền văn minh còn cổ xưa hơn nữa.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.2: Tiếng Thì Thầm Của Đá</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[ĐẠI TU AI THẾ GIỚI]</span> **THẾ GIỚI CÓ HỒN HƠN**: Để đáp lại phản hồi về việc thế giới có cảm giác bị bó hẹp, AI Quản Trò đã được dạy một triết lý thiết kế mới.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[TỪ BỎ "PHÒNG HỘP"]</span> AI giờ đây sẽ tránh tạo ra các "căn phòng" chung chung. Thay vào đó, nó sẽ xây dựng các không gian độc đáo, có lịch sử và kết nối với nhau một cách tự nhiên. Mong đợi những quang cảnh rộng lớn, những tàn tích có câu chuyện, và những lối đi ẩn giấu.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[CẢM NHẬN BẰNG MỌI GIÁC QUAN]</span> Thế giới không chỉ để nhìn. AI sẽ thường xuyên mô tả những gì bạn nghe, ngửi và cảm nhận, từ tiếng gió hú qua những kẽ nứt đến mùi hôi thối của sự mục rữa, tạo ra một trải nghiệm nhập vai sâu sắc hơn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[LỰA CHỌN CÓ Ý NGHĨA HƠN]</span> Các lựa chọn của bạn sẽ phản ánh sự phong phú của môi trường, cho phép bạn tương tác với các chi tiết cụ thể của thế giới thay vì chỉ đi từ A đến B.
-                    </li>
-                </ul>
-            </div>
-            
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.1: Tiếng Vọng Trong Hoang Tàn</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[CẬP NHẬT CỐT LÕI]</span> **SỰ NGUY HIỂM & CHIỀU SÂU**: Một loạt các quy tắc cốt lõi mới đã được khắc vào AI Quản Trò để giải quyết phản hồi rằng thế giới quá trống rỗng và các cơ chế quá đơn giản.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[THẾ GIỚI SỐNG ĐỘNG]</span> AI giờ đây bị **bắt buộc** phải tích cực tạo ra NPC, kẻ thù, hoặc các dấu hiệu của sự sống (hoặc cái chết) trong hầu hết mọi cảnh.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[RỦI RO & HẬU QUẢ]</span> Nghỉ ngơi ở những nơi không an toàn giờ đây có nguy cơ bị phục kích. Những hành động tàn nhẫn sẽ thu hút sự chú ý của Vực Thẳm, làm cho thế giới ngày càng thù địch hơn.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-yellow-400">[TÁC ĐỘNG CỦA TÂM TRÍ]</span> Chỉ số Tâm trí (Sanity) giờ đây có tác động rõ rệt hơn. Khi tâm trí xuống thấp, nó sẽ ảnh hưởng đến nhận thức của bạn về thế giới và có thể gây ra những cơn ác mộng.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.0: Vòng Lặp Vĩnh Cửu</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[ĐẠI TU TOÀN DIỆN]</span> **Thế Giới Sống Động & Hậu Quả**: Phiên bản này củng cố và tích hợp các hệ thống cốt lõi để tạo ra một trải nghiệm nhập vai sâu sắc và nghiệt ngã hơn.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[NPC ĐỘNG]</span> Thế giới không còn trống rỗng. AI Quản Trò giờ đây chủ động tạo ra các **NPC động** với mục đích và câu chuyện riêng, khiến mỗi khu vực trở nên sống động và khó lường.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[HỆ THỐNG HẬU QUẢ]</span> **Sự Chú Ý Của Vực Thẳm**: Mỗi hành động tàn nhẫn và tha hóa của bạn sẽ khiến Vực Thẳm chú ý, làm cho thế giới ngày càng trở nên thù địch, kẻ thù nguy hiểm hơn và sự cứu rỗi xa vời hơn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[TƯƠNG TÁC XÃ HỘI]</span> Các hệ thống **Uy Tín**, **Diện Mạo**, và **Tình Cảm Đồng Đội** giờ đây hoạt động phối hợp, tạo ra một mạng lưới các mối quan hệ xã hội phức tạp.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-yellow-400">[CƠ CHẾ CỐT LÕI]</span> Củng cố các hệ thống chiến đấu nhắm mục tiêu bộ phận cơ thể, quản lý Tâm Trí, Đói/Khát, và hệ thống Thương Tật chi tiết, tạo ra một trải nghiệm sinh tồn tàn bạo.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.3: Con Mắt Của Vực Thẳm</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> **Hình Ảnh Hóa Cơn Ác Mộng**: Mỗi cảnh quan, mỗi cuộc chạm trán giờ đây sẽ được đi kèm với một hình ảnh độc nhất do AI tạo ra, kéo bạn sâu hơn vào thế giới kinh hoàng của 'Lời Nguyền Của Vực Thẳm'.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN CÔNG NGHỆ]</span> Tích hợp mô hình sinh ảnh **Imagen 3** để tạo ra các tác phẩm nghệ thuật đầy ám ảnh, phản ánh chính xác không khí và chi tiết của câu chuyện.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[CẢI TIẾN GIAO DIỆN]</span> Một bảng điều khiển nghệ thuật mới đã được thêm vào phía trên câu chuyện, hiển thị hình ảnh của thế giới khi nó thay đổi.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.2: Sợi Dây Tình Cảm</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Tình Cảm (Affection)**: Mối quan hệ của bạn với đồng đội giờ đây sẽ được theo dõi. Mỗi hành động của bạn, từ việc chia sẻ chiến lợi phẩm đến những quyết định đạo đức, đều sẽ ảnh hưởng đến cách họ nhìn nhận bạn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN GAMEPLAY]</span> Tình cảm của đồng đội sẽ có hậu quả thực sự. Lòng trung thành cao có thể mở khóa các nhiệm vụ cá nhân, các lựa chọn đối thoại đặc biệt, và sự hỗ trợ mạnh mẽ hơn trong chiến đấu. Ngược lại, tình cảm thấp có thể dẫn đến sự bất tuân, phản bội, hoặc thậm chí là họ sẽ rời bỏ bạn vào lúc nguy cấp nhất.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[CẢI TIẾN GIAO DIỆN]</span> Bảng Đồng Đội giờ đây hiển thị một thanh Tình Cảm bên cạnh thanh máu, cho bạn thấy rõ mức độ yêu ghét của họ. Các trạng thái từ "Căm Ghét" đến "Bạn Tâm Giao" sẽ cho bạn biết chính xác vị trí của mình trong lòng họ.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-yellow-400">[CẬP NHẬT AI]</span> AI Quản Trò giờ đây đã được huấn luyện để quản lý và phản hồi lại hệ thống Tình Cảm, tạo ra những câu chuyện năng động và các mối quan hệ phức tạp hơn.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.1: Ánh Sáng Leo Lắt</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Thánh Địa (Sanctuary)**: Giữa tro tàn, bạn có thể tìm thấy và vun đắp những tia hy vọng. Khám phá những nơi trú ẩn tiềm năng, phát triển chúng và biến chúng thành Thánh Địa của riêng bạn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Chỉ số **Hy Vọng (Hope)**: Các Thánh Địa giờ đây có chỉ số Hy Vọng. Giúp đỡ những người sống sót, hoàn thành các nhiệm vụ xây dựng cộng đồng để thắp lên ngọn lửa hy vọng, hoặc chứng kiến nó lụi tàn trước sự tàn khốc của thế giới.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> **Xây Dựng Cộng Đồng**: Thuyết phục các NPC hiếm hoi có lòng tốt chuyển đến Thánh Địa của bạn. Họ có thể cung cấp các lợi ích độc nhất, nhưng cũng là những sinh mạng quý giá mà bạn phải bảo vệ.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[CẢI TIẾN GAMEPLAY]</span> Tương tác xã hội sâu sắc hơn với hệ thống **Uy Tín (Reputation)** và **Diện Mạo (Appearance)**. Cách bạn hành động và vẻ ngoài của bạn sẽ ảnh hưởng trực tiếp đến cách thế giới phản ứng với bạn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-yellow-400">[MỤC TIÊU CUỐI GAME]</span> Một Thánh Địa được phát triển đầy đủ có thể mở khóa một con đường để **thanh tẩy Dấu Hiệu Tế Thần**, nhưng cái giá phải trả sẽ vô cùng đắt.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[CẢI TIẾN GIAO DIỆN]</span> Bảng điều khiển Thánh Địa đã được thêm vào giao diện chính để dễ dàng quản lý.
-                    </li>
-                </ul>
-            </div>
-
-             <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 2.0: Vực Thẳm Nhìn Lại</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[ĐẠI TU AI]</span> AI Quản Trò đã được viết lại hoàn toàn, lấy cảm hứng từ sự tàn bạo của **Berserk**, sự trừng phạt của **Fear & Hunger**, và sự tha hóa của **Black Souls**. Thế giới giờ đây chủ động hơn trong việc nghiền nát cả cơ thể và tinh thần của bạn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Tâm Trí (Sanity)**: Chứng kiến những điều kinh hoàng hoặc sử dụng ma thuật hắc ám sẽ bào mòn tâm trí của bạn, ảnh hưởng đến khả năng chiến đấu.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Hệ thống **Thành Thạo (Proficiency)**: Sử dụng các loại vũ khí trong chiến đấu sẽ giúp bạn tích lũy kinh nghiệm, tăng cấp độ thành thạo và nhận được các bonus vĩnh viễn.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[TÍNH NĂNG MỚI]</span> Cơ chế **Dấu Hiệu Tế Thần**: Lấy cảm hứng từ Berserk, người chơi có thể bị đánh dấu, thu hút những kẻ thù nguy hiểm hơn nhưng cũng nhận được một chút sức mạnh từ sự tuyệt vọng.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-yellow-400">[CÂN BẰNG ĐỘ KHÓ]</span> Các độ khó đã được tinh chỉnh lại hoàn toàn. Các cơ chế trừng phạt như thương tật, đói/mất trí, và sự tha hóa của thế giới giờ đây sẽ được giới thiệu một cách từ từ qua các cấp độ khó, thay vì chỉ dồn hết vào 'Địa Ngục'.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-blue-400">[ĐỘ KHÓ MỚI]</span> Thêm độ khó **"Đày Đoạ"**, một thử thách nằm giữa 'Ác Mộng' và 'Địa Ngục', dành cho những người tìm kiếm sự đau khổ tột cùng nhưng vẫn còn một tia hy vọng.
-                    </li>
-                </ul>
-            </div>
-            
             <div className="pt-4 border-t border-gray-700 text-center">
                 <p className="text-gray-500 italic">Bóng tối không ngừng phát triển, và chúng tôi cũng vậy.</p>
             </div>

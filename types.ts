@@ -1,5 +1,7 @@
 
-export type Origin = 'Cựu Vệ Binh' | 'Kẻ Trộm Vặt' | 'Tập Sự Viện Hàn Lâm' | 'Người Sống Sót';
+
+
+export type Origin = 'Cựu Vệ Binh' | 'Kẻ Trộm Vặt' | 'Tập Sự Viện Hàn Lâm' | 'Người Sống Sót' | 'Hậu Duệ Sa Ngã';
 export type Difficulty = 'Thử Thách' | 'Ác Mộng' | 'Đày Đoạ' | 'Địa Ngục';
 export type Gender = 'Nam' | 'Nữ' | 'Khác';
 export type WeaponType = 'SWORD' | 'AXE' | 'DAGGER' | 'MACE' | 'SPEAR' | 'BOW' | 'STAFF' | 'UNARMED';
@@ -74,6 +76,14 @@ export type InjuryLevel = 'HEALTHY' | 'INJURED' | 'CRITICAL' | 'SEVERED';
 
 export type Appearance = 'CLEAN' | 'DIRTY' | 'BLOODY' | 'WELL_DRESSED' | 'IN_RAGS';
 
+export interface Follower {
+    id: string;
+    name: string;
+    cult: OuterGodMark;
+    loyalty: number; // From -100 (Mutinous) to 100 (Devoted)
+    status: 'IDLE' | 'ON_MISSION' | 'INJURED' | 'DISGRACED' | 'BETRAYED';
+}
+
 export interface Sanctuary {
     id: string;
     name: string;
@@ -82,12 +92,16 @@ export interface Sanctuary {
     hope: number;
     residents: string[];
     improvements: string[];
+    followers: Follower[];
 }
+
+export type NPCDisposition = 'NEUTRAL' | 'HOSTILE' | 'FRIENDLY';
 
 export interface NPC {
     id: string;
     name: string;
     description: string;
+    disposition?: NPCDisposition;
 }
 
 export interface PlayerState {
@@ -142,6 +156,10 @@ export interface PlayerState {
     appearance: Appearance; // Vẻ ngoài
     sanctuaries: Sanctuary[];
     talent: string | null; // ID của thiên phú đã chọn
+    faith: Partial<Record<OuterGodMark, {
+        points: number;
+        level: number;
+    }>>;
 }
 
 export type GamePhase = 'TITLE_SCREEN' | 'CHARACTER_CREATION' | 'EXPLORING' | 'COMBAT' | 'GAMEOVER' | 'VICTORY' | 'CUSTOM_JOURNEY' | 'CREATORS_WILL_SETUP';
@@ -188,6 +206,17 @@ export interface StatusUpdate {
     appearanceChange?: Appearance; // Thay đổi vẻ ngoài
     godFragmentsChange?: number; // Số lượng Mảnh Vỡ Thần Thánh người chơi nhận được (thường là 1).
     bodyPartInjuries?: { part: BodyPart; level: InjuryLevel }[];
+    itemsLost?: string[]; // Array of item IDs lost
+    
+    // Permanent base stat changes (for Path of Might)
+    baseAttackChange?: number;
+    baseDefenseChange?: number;
+    baseCharismaChange?: number;
+    baseMaxHpChange?: number;
+    baseMaxStaminaChange?: number;
+    baseMaxManaChange?: number;
+    baseMaxSanityChange?: number;
+    
     isMarked?: boolean; // AI có thể đặt thành true để áp dụng Dấu Hiệu Tế Thần
     markRemoved?: boolean; // AI có thể đặt thành true để gỡ bỏ Dấu Hiệu, chỉ sau một nhiệm vụ cực kỳ khó khăn.
     succubusPactMade?: boolean; // AI có thể đặt thành true để kích hoạt Giao Ước Đen Tối vĩnh viễn.
@@ -209,6 +238,23 @@ export interface QuestUpdate {
 export interface ProficiencyUpdate {
     weaponType: WeaponType;
     xpGained: number;
+}
+
+export interface FaithUpdate {
+    god: OuterGodMark;
+    pointsGained: number;
+    levelUp?: boolean;
+}
+
+export interface FollowerUpdate {
+    sanctuaryId: string;
+    addFollower?: Follower;
+    removeFollowerId?: string;
+    updateFollower?: {
+        id: string;
+        loyaltyChange?: number;
+        status?: Follower['status'];
+    };
 }
 
 
@@ -235,6 +281,8 @@ export interface GameData {
         description?: string;
         name?: string;
     }[] | null;
+    faithUpdate?: FaithUpdate | null;
+    followerUpdates?: FollowerUpdate[] | null;
     npcsInScene: NPC[] | null;
     enemies: Enemy[] | null;
     combatLog: string[] | null;

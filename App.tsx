@@ -1,8 +1,6 @@
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GameState, PlayerState, GameData, Choice, Origin, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary, Enemy, NPC } from './types';
-import { INITIAL_PLAYER_STATE, GAME_TITLE, ORIGINS, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY, DYNAMIC_WORLD_EVENT_TURN_MIN, DYNAMIC_WORLD_EVENT_TURN_MAX, BASE_STATS_BEFORE_POINT_BUY, OUTER_GODS, PERSONALITIES, ALL_TALENTS_MAP } from './constants';
+import { GameState, PlayerState, GameData, Choice, Origin, Item, Difficulty, Quest, Companion, Skill, EquipmentSlot, Gender, Sanctuary, Enemy, NPC, Follower, OuterGodMark } from './types';
+import { INITIAL_PLAYER_STATE, GAME_TITLE, ORIGINS, SAVE_KEY, API_KEYS_STORAGE_KEY, API_SOURCE_STORAGE_KEY, DYNAMIC_WORLD_EVENT_TURN_MIN, DYNAMIC_WORLD_EVENT_TURN_MAX, BASE_STATS_BEFORE_POINT_BUY, OUTER_GODS, PERSONALITIES, ALL_TALENTS_MAP, MARK_TITLES, FAITH_THRESHOLDS, DIFFICULTY_MODIFIERS } from './constants';
 import { GameAIService } from './services/geminiService';
 import NarrativePanel from './components/NarrativePanel';
 import CombatPanel from './components/CombatPanel';
@@ -321,24 +319,13 @@ const App: React.FC = () => {
                     let loadedPlayerState: PlayerState = savedData.playerState;
                     let loadedGameState: GameState = savedData.gameState;
 
-                    // BACKWARDS COMPATIBILITY
-                    if ((loadedPlayerState as any).class && !loadedPlayerState.origin) {
-                        const oldClass = (loadedPlayerState as any).class;
-                        if (oldClass === 'Warrior') loadedPlayerState.origin = 'Cựu Vệ Binh';
-                        else if (oldClass === 'Rogue') loadedPlayerState.origin = 'Kẻ Trộm Vặt';
-                        else if (oldClass === 'Scholar') loadedPlayerState.origin = 'Tập Sự Viện Hàn Lâm';
-                        else loadedPlayerState.origin = 'Người Sống Sót';
-                        delete (loadedPlayerState as any).class;
-                        addLogEntry("Tệp lưu cũ đã được chuyển đổi sang hệ thống Nguồn Gốc mới.");
-                    }
-                    if(!loadedPlayerState.baseAttack) {
-                        loadedPlayerState = {...BASE_STATS_BEFORE_POINT_BUY, ...loadedPlayerState};
-                    }
-
-
-                    // Ensure fields exist for older saves
+                    // BACKWARDS COMPATIBILITY & DEFAULTS
                     loadedPlayerState = {...INITIAL_PLAYER_STATE, ...loadedPlayerState};
-                    loadedPlayerState.sanctuaries = loadedPlayerState.sanctuaries || []; 
+                    
+                    loadedPlayerState.sanctuaries = (loadedPlayerState.sanctuaries || []).map((s: Sanctuary) => ({
+                        ...s,
+                        followers: s.followers || []
+                    }));
                     
                     if (loadedPlayerState.charisma === undefined) {
                         loadedPlayerState.baseCharisma = loadedPlayerState.baseCharisma || 5;
@@ -355,14 +342,17 @@ const App: React.FC = () => {
                     if (loadedGameState.nextDynamicWorldEventTurn === undefined) {
                         loadedGameState.nextDynamicWorldEventTurn = loadedGameState.turn + DYNAMIC_WORLD_EVENT_TURN_MIN + Math.floor(Math.random() * (DYNAMIC_WORLD_EVENT_TURN_MAX - DYNAMIC_WORLD_EVENT_TURN_MIN + 1));
                     }
-                    if (loadedGameState.enemies === undefined) loadedGameState.enemies = [];
-                    if (loadedGameState.combatLog === undefined) loadedGameState.combatLog = [];
-                    if (loadedGameState.npcsInScene === undefined) loadedGameState.npcsInScene = [];
+
+                    // Reset fields that shouldn't persist across loads
+                    loadedGameState.enemies = loadedGameState.enemies || [];
+                    loadedGameState.combatLog = [];
+                    loadedGameState.npcsInScene = loadedGameState.npcsInScene || [];
                     loadedGameState.customJourneyPrompt = loadedGameState.customJourneyPrompt || '';
                     loadedGameState.isCreatorsWillActive = loadedGameState.isCreatorsWillActive || false;
                     loadedPlayerState.outerGodMark = loadedPlayerState.outerGodMark || null;
                     loadedPlayerState.godFragments = loadedPlayerState.godFragments || 0;
                     loadedPlayerState.talent = loadedPlayerState.talent || null;
+                    loadedPlayerState.faith = loadedPlayerState.faith || {};
 
 
                     setPlayerState(recalculateStats(loadedPlayerState));
@@ -471,23 +461,56 @@ const App: React.FC = () => {
 
         setPlayerState(prevPlayerState => {
             let newPlayerState = { ...prevPlayerState };
+            const personality = newPlayerState.personality ? PERSONALITIES[newPlayerState.personality] : null;
             let perTurnMessageParts: string[] = [];
             
-            // Per-turn effects from marks and personalities
-            if (newPlayerState.outerGodMark === 'ALL_MOTHER' && newPlayerState.hp < newPlayerState.maxHp) {
-                newPlayerState.hp = Math.min(newPlayerState.maxHp, newPlayerState.hp + 2);
-                perTurnMessageParts.push('Vết thương của bạn tự liền lại một chút.');
+            // Per-turn effects should only apply if a turn has actually passed
+            const turnPassed = (gameStateRef.current.phase === 'EXPLORING' || gameStateRef.current.phase === 'COMBAT');
+            if (turnPassed) {
+                // 1. Hunger and Thirst drain based on difficulty
+                const difficulty = gameStateRef.current.difficulty;
+                if (difficulty) {
+                    const modifiers = DIFFICULTY_MODIFIERS[difficulty];
+                    const wasHungry = newPlayerState.hunger < 50;
+                    const wasThirsty = newPlayerState.thirst < 50;
+                    
+                    newPlayerState.hunger = Math.max(0, newPlayerState.hunger - modifiers.hungerDrain);
+                    newPlayerState.thirst = Math.max(0, newPlayerState.thirst - modifiers.thirstDrain);
+
+                    if (newPlayerState.hunger === 0) {
+                        newPlayerState.hp -= 1; // Starvation damage
+                        setTimeout(() => addLogEntry("Cơn đói đang bào mòn sinh lực của bạn."), 150);
+                    }
+                    if (newPlayerState.thirst === 0) {
+                        newPlayerState.hp -= 2; // Dehydration damage
+                        setTimeout(() => addLogEntry("Sự mất nước khiến cơ thể bạn suy sụp."), 150);
+                    }
+                    newPlayerState.hp = Math.max(0, newPlayerState.hp);
+
+
+                    const isNowHungry = newPlayerState.hunger < 50;
+                    const isNowThirsty = newPlayerState.thirst < 50;
+                    if (!wasHungry && isNowHungry) setTimeout(() => addLogEntry("Cơn đói bắt đầu gặm nhấm."), 150);
+                    if (!wasThirsty && isNowThirsty) setTimeout(() => addLogEntry("Cổ họng bạn khô khốc."), 150);
+                }
+
+                // 2. Per-turn effects from marks and personalities
+                if (newPlayerState.outerGodMark === 'ALL_MOTHER' && newPlayerState.hp < newPlayerState.maxHp) {
+                    newPlayerState.hp = Math.min(newPlayerState.maxHp, newPlayerState.hp + 2);
+                    perTurnMessageParts.push('Vết thương của bạn tự liền lại một chút.');
+                }
+                if (newPlayerState.outerGodMark === 'SILENT_WATCHER' && newPlayerState.mana < newPlayerState.maxMana) {
+                    newPlayerState.mana = Math.min(newPlayerState.maxMana, newPlayerState.mana + 1);
+                    perTurnMessageParts.push('Năng lượng kỳ lạ chảy vào tâm trí bạn.');
+                }
+                if (personality?.effects.mechanics.perTurnStaminaRegen?.condition === 'LOW_SANITY' && newPlayerState.sanity < newPlayerState.maxSanity * 0.3) {
+                    const regenAmount = personality.effects.mechanics.perTurnStaminaRegen.amount;
+                    newPlayerState.stamina = Math.min(newPlayerState.maxStamina, newPlayerState.stamina + regenAmount);
+                    perTurnMessageParts.push('Sự tuyệt vọng mang lại cho bạn một sức bền kỳ lạ.');
+                }
             }
-            if (newPlayerState.outerGodMark === 'SILENT_WATCHER' && newPlayerState.mana < newPlayerState.maxMana) {
-                newPlayerState.mana = Math.min(newPlayerState.maxMana, newPlayerState.mana + 1);
-                 perTurnMessageParts.push('Năng lượng kỳ lạ chảy vào tâm trí bạn.');
-            }
-            const personality = newPlayerState.personality ? PERSONALITIES[newPlayerState.personality] : null;
-            if (personality?.effects.mechanics.perTurnStaminaRegen?.condition === 'LOW_SANITY' && newPlayerState.sanity < newPlayerState.maxSanity * 0.3) {
-                const regenAmount = personality.effects.mechanics.perTurnStaminaRegen.amount;
-                newPlayerState.stamina = Math.min(newPlayerState.maxStamina, newPlayerState.stamina + regenAmount);
-                perTurnMessageParts.push('Sự tuyệt vọng mang lại cho bạn một sức bền kỳ lạ.');
-            }
+
+
             if(perTurnMessageParts.length > 0){
                 setTimeout(() => addLogEntry(perTurnMessageParts.join(' ')), 100);
             }
@@ -498,7 +521,9 @@ const App: React.FC = () => {
                     hpChange = 0, staminaChange = 0, manaChange = 0, sanityChange = 0,
                     hungerChange = 0, thirstChange = 0, currencyChange = 0,
                     reputationChange = 0, godFragmentsChange = 0, 
-                    appearanceChange = newPlayerState.appearance
+                    appearanceChange = newPlayerState.appearance,
+                    baseAttackChange = 0, baseDefenseChange = 0, baseCharismaChange = 0,
+                    baseMaxHpChange = 0, baseMaxStaminaChange = 0, baseMaxManaChange = 0, baseMaxSanityChange = 0,
                 } = gameData.statusUpdate;
 
                 // Apply personality-based modifications
@@ -512,6 +537,16 @@ const App: React.FC = () => {
                         reputationChange = 0;
                     }
                 }
+
+                // Apply permanent base stat changes
+                newPlayerState.baseAttack += baseAttackChange;
+                newPlayerState.baseDefense += baseDefenseChange;
+                newPlayerState.baseCharisma += baseCharismaChange;
+                newPlayerState.baseMaxHp += baseMaxHpChange;
+                newPlayerState.baseMaxStamina += baseMaxStaminaChange;
+                newPlayerState.baseMaxMana += baseMaxManaChange;
+                newPlayerState.baseMaxSanity += baseMaxSanityChange;
+
 
                 const newHp = Math.max(0, newPlayerState.hp + hpChange);
                 const newStamina = Math.max(0, Math.min(newPlayerState.maxStamina, newPlayerState.stamina + staminaChange));
@@ -555,6 +590,10 @@ const App: React.FC = () => {
                 if (gameData.statusUpdate.outerGodMarkGained) {
                     const newMark = gameData.statusUpdate.outerGodMarkGained;
                     newPlayerState.outerGodMark = newMark;
+                    // Initialize faith for the new god if it doesn't exist
+                    if (!newPlayerState.faith[newMark]) {
+                        newPlayerState.faith[newMark] = { points: 0, level: 0 };
+                    }
                     setTimeout(() => {
                         const markInfo = OUTER_GODS[newMark];
                         const markMessage = `Bạn đã thu hút sự chú ý của một Ngoại Thần. ${markInfo.markName} giờ khắc sâu vào linh hồn bạn.`;
@@ -603,6 +642,24 @@ const App: React.FC = () => {
             
             if (gameData.itemsFound && gameData.itemsFound.length > 0) {
                 newPlayerState = { ...newPlayerState, inventory: [...newPlayerState.inventory, ...gameData.itemsFound] };
+            }
+
+            if (gameData.statusUpdate?.itemsLost && gameData.statusUpdate.itemsLost.length > 0) {
+                const lostItemIds = new Set(gameData.statusUpdate.itemsLost);
+                const lostItemNames: string[] = [];
+                const inventoryAfterLoss = newPlayerState.inventory.filter(item => {
+                    if (lostItemIds.has(item.id)) {
+                        lostItemNames.push(item.name);
+                        return false;
+                    }
+                    return true;
+                });
+                newPlayerState = { ...newPlayerState, inventory: inventoryAfterLoss };
+                setTimeout(() => {
+                    const msg = `Bạn đã mất: ${lostItemNames.join(', ')}.`;
+                    setNotification(msg);
+                    addLogEntry(msg);
+                }, 50);
             }
 
             if (gameData.skillsLearned && gameData.skillsLearned.length > 0) {
@@ -690,6 +747,7 @@ const App: React.FC = () => {
                     ...s,
                     residents: s.residents || [],
                     improvements: s.improvements || [],
+                    followers: s.followers || [],
                 }));
                 newPlayerState = { ...newPlayerState, sanctuaries: [...newPlayerState.sanctuaries, ...newSanctuariesWithDefaults] };
             }
@@ -711,6 +769,72 @@ const App: React.FC = () => {
                         return s;
                     })
                 };
+            }
+
+            if (gameData.faithUpdate) {
+                const { god, pointsGained, levelUp } = gameData.faithUpdate;
+                const newFaith = { ...newPlayerState.faith };
+                if (!newFaith[god]) {
+                    newFaith[god] = { points: 0, level: 0 };
+                }
+                newFaith[god]!.points += pointsGained;
+
+                if (levelUp) {
+                    newFaith[god]!.level += 1;
+                    const newLevel = newFaith[god]!.level;
+                    const newTitle = MARK_TITLES[god][newLevel -1] || `Bậc ${newLevel}`;
+                    setTimeout(() => {
+                        const msg = `Tín ngưỡng của bạn với ${OUTER_GODS[god].markName} đã được công nhận! Bạn đã đạt đến bậc ${newTitle}.`;
+                        setNotification(msg);
+                        addLogEntry(msg);
+                    }, 50);
+                }
+                newPlayerState = { ...newPlayerState, faith: newFaith };
+            }
+
+            if (gameData.followerUpdates) {
+                const newSanctuaries = [...newPlayerState.sanctuaries];
+                gameData.followerUpdates.forEach(update => {
+                    const sanctuary = newSanctuaries.find(s => s.id === update.sanctuaryId);
+                    if (sanctuary) {
+                        if (update.addFollower) {
+                            sanctuary.followers = [...sanctuary.followers, update.addFollower];
+                             setTimeout(() => {
+                                const msg = `${update.addFollower?.name} đã thề trung thành với giáo phái của bạn tại ${sanctuary.name}.`;
+                                setNotification(msg);
+                                addLogEntry(msg);
+                            }, 50);
+                        }
+                        if (update.removeFollowerId) {
+                            const removedFollower = sanctuary.followers.find(f => f.id === update.removeFollowerId);
+                            sanctuary.followers = sanctuary.followers.filter(f => f.id !== update.removeFollowerId);
+                             setTimeout(() => {
+                                if (removedFollower) {
+                                    const msg = `${removedFollower.name} đã rời khỏi giáo phái.`;
+                                    setNotification(msg);
+                                    addLogEntry(msg);
+                                }
+                            }, 50);
+                        }
+                        if (update.updateFollower) {
+                            const follower = sanctuary.followers.find(f => f.id === update.updateFollower?.id);
+                            if (follower) {
+                                if (update.updateFollower.loyaltyChange) {
+                                    follower.loyalty = Math.max(-100, Math.min(100, follower.loyalty + update.updateFollower.loyaltyChange));
+                                    setTimeout(() => {
+                                        const direction = update.updateFollower.loyaltyChange! > 0 ? "tăng lên" : "giảm xuống";
+                                        const msg = `Lòng trung thành của ${follower.name} đã ${direction}.`;
+                                        addLogEntry(msg); // Log this quietly
+                                    }, 50);
+                                }
+                                if (update.updateFollower.status) {
+                                    follower.status = update.updateFollower.status;
+                                }
+                            }
+                        }
+                    }
+                });
+                newPlayerState = { ...newPlayerState, sanctuaries: newSanctuaries };
             }
 
             // Item Decay Logic (from former handleGameTick)
@@ -1159,7 +1283,8 @@ const App: React.FC = () => {
             stamina: finalStats.baseMaxStamina,
             mana: finalStats.baseMaxMana,
             sanity: finalStats.baseMaxSanity,
-            proficiency: newProficiency
+            proficiency: newProficiency,
+            faith: {}, // Initialize new faith system
         };
 
         const personalityData = PERSONALITIES[personality];
@@ -1553,9 +1678,7 @@ const App: React.FC = () => {
                         <div className="flex-grow p-4 space-y-6 overflow-y-auto">
                             <PlayerStatsPanel playerState={playerState} lastTurnTokenUsage={lastTurnTokenUsage} />
                             <InfoTabsPanel 
-                                companions={playerState.companions} 
-                                quests={playerState.quests} 
-                                sanctuaries={playerState.sanctuaries} 
+                                playerState={playerState}
                             />
                         </div>
                          <div className="flex-shrink-0 p-4 border-t border-gray-700/50">

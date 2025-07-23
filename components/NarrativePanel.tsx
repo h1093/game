@@ -27,12 +27,19 @@ const NarrativePanel: React.FC<NarrativePanelProps> = ({ narrative, combatLog, i
                 <div className="mt-6 pt-4 border-t border-gray-700/50 animate-fadeIn">
                     <h3 className="text-lg font-bold text-gray-400 mb-3">Những người khác ở đây</h3>
                     <ul className="space-y-3">
-                        {npcsInScene.map(npc => (
-                            <li key={npc.id} className="bg-gray-900/30 p-3 rounded-md border border-gray-700/50">
-                                <p className="font-semibold text-gray-200">{npc.name}</p>
-                                <p className="text-sm text-gray-400 italic">{npc.description}</p>
-                            </li>
-                        ))}
+                        {npcsInScene.map(npc => {
+                             const isHostile = npc.disposition === 'HOSTILE';
+                             const borderColor = isHostile ? 'border-red-600/70' : 'border-gray-700/50';
+                             const bgColor = isHostile ? 'bg-red-900/40' : 'bg-gray-900/30';
+                             const nameColor = isHostile ? 'text-red-300' : 'text-gray-200';
+
+                            return (
+                                <li key={npc.id} className={`${bgColor} p-3 rounded-md border ${borderColor} transition-colors`}>
+                                    <p className={`font-semibold ${nameColor}`}>{npc.name}</p>
+                                    <p className="text-sm text-gray-400 italic">{npc.description}</p>
+                                </li>
+                            )
+                        })}
                     </ul>
                 </div>
             )}

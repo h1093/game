@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { Companion, Quest, Sanctuary } from '../types';
+import { PlayerState } from '../types';
 import SanctuaryPanel from './SanctuaryPanel';
 
 // SVG Icons
@@ -24,12 +25,11 @@ const IconHome = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 interface InfoTabsPanelProps {
-    companions: Companion[];
-    quests: Quest[];
-    sanctuaries: Sanctuary[];
+    playerState: PlayerState;
 }
 
-const InfoTabsPanel: React.FC<InfoTabsPanelProps> = ({ companions, quests, sanctuaries }) => {
+const InfoTabsPanel: React.FC<InfoTabsPanelProps> = ({ playerState }) => {
+    const { companions, quests, sanctuaries } = playerState;
     const [activeTab, setActiveTab] = useState<'companions' | 'quests' | 'sanctuary'>(sanctuaries.length > 0 ? 'sanctuary' : 'companions');
     const activeQuests = quests.filter(q => q.status === 'ACTIVE');
 

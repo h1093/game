@@ -91,18 +91,11 @@ const CharacterCreationScreen: React.FC<CharacterCreationScreenProps> = ({ onCha
         return calculatedStats;
     }, [points, selectedOrigin]);
 
-    const handleRerollTalents = () => {
-        if (selectedOrigin) {
-            const originTalents = TALENTS[selectedOrigin];
-            const shuffled = [...originTalents].sort(() => 0.5 - Math.random());
-            setProposedTalents(shuffled.slice(0, 3));
-            setSelectedTalent(null);
-        }
-    };
-
     useEffect(() => {
         if (selectedOrigin) {
-            handleRerollTalents();
+            const originTalents = TALENTS[selectedOrigin];
+            setProposedTalents(originTalents);
+            setSelectedTalent(null);
         } else {
             setProposedTalents([]);
             setSelectedTalent(null);
@@ -274,12 +267,7 @@ Hãy viết một tiểu sử ngắn gọn, độc đáo và đầy không khí 
                              {/* Talent Selection */}
                             {selectedOrigin && (
                                 <div className="animate-fadeIn">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <h3 className={`text-lg font-bold text-gray-300 flex items-center gap-2 ${!selectedTalent ? 'text-red-500 animate-pulse' : ''}`}><IconGift /> Thiên Phú</h3>
-                                        <button type="button" onClick={handleRerollTalents} className="flex items-center gap-1.5 bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold py-1 px-2 rounded-md transition-colors">
-                                            <IconShuffle className="w-4 h-4" /> Xáo lại
-                                        </button>
-                                    </div>
+                                    <h3 className={`text-lg font-bold text-gray-300 mb-3 flex items-center gap-2 ${!selectedTalent ? 'text-red-500 animate-pulse' : ''}`}><IconGift /> Thiên Phú</h3>
                                     <div className="space-y-3">
                                         {proposedTalents.map((talent) => (
                                             <button

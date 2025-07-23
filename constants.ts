@@ -1,5 +1,6 @@
 
 
+
 import { PlayerState, Origin, Difficulty, Gender, WeaponType, BodyPart, OuterGodMark, Item } from './types';
 
 export const SAVE_KEY = "darkFantasyRPGSaveData";
@@ -18,6 +19,16 @@ export const DIFFICULTY_POINT_BUY: Record<Difficulty, number> = {
     'Ác Mộng': 20,
     'Đày Đoạ': 15,
     'Địa Ngục': 10,
+};
+
+export const DIFFICULTY_MODIFIERS: Record<Difficulty, {
+    hungerDrain: number;
+    thirstDrain: number;
+}> = {
+    'Thử Thách': { hungerDrain: 1, thirstDrain: 2 },
+    'Ác Mộng': { hungerDrain: 2, thirstDrain: 3 },
+    'Đày Đoạ': { hungerDrain: 3, thirstDrain: 4 },
+    'Địa Ngục': { hungerDrain: 4, thirstDrain: 5 },
 };
 
 export const BASE_STATS_BEFORE_POINT_BUY = {
@@ -88,6 +99,7 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
     appearance: 'DIRTY',
     sanctuaries: [],
     talent: null,
+    faith: {},
 };
 
 type Talent = {
@@ -96,6 +108,14 @@ type Talent = {
     description: string;
     effects: { [key: string]: number };
 };
+
+export const FAITH_THRESHOLDS = [100, 300, 750, 1500]; // Points for level 1, 2, 3, 4
+export const MARK_TITLES: Record<OuterGodMark, string[]> = {
+    'ALL_MOTHER': ["Tín Đồ", "Tư Tế Của Sự Sống", "Trái Tim Của Đàn", "Hóa Thân Của Mẹ"],
+    'SILENT_WATCHER': ["Tín Đồ", "Nhà Chiêm Tinh", "Người Gác Đền Tri Thức", "Con Mắt Của Vực Thẳm"],
+    'ABYSSAL_HUNGER': ["Tín Đồ", "Kẻ Săn Mồi", "Hàm Răng Của Cơn Đói", "Hiện Thân Của Sự Bất Tận"]
+};
+
 
 export const TALENTS: Record<Origin, Talent[]> = {
   'Cựu Vệ Binh': [
@@ -117,6 +137,11 @@ export const TALENTS: Record<Origin, Talent[]> = {
     { id: 'scavenger_luck', name: 'Vận May Kẻ Nhặt Rác', description: 'Bạn có con mắt tinh tường để tìm những thứ hữu ích. Tăng 10 Thể Lực tối đa và 5 Máu tối đa.', effects: { baseMaxStamina: 10, baseMaxHp: 5 } },
     { id: 'iron_stomach_rework', name: 'Dạ Dày Sắt', description: 'Cơ thể bạn đã quen với sự thiếu thốn. Tăng 15 Máu tối đa.', effects: { baseMaxHp: 15 } },
     { id: 'sixth_sense', name: 'Giác Quan Thứ Sáu', description: 'Bạn có một cảm giác bất an khi nguy hiểm cận kề. Tăng 10 Tâm Trí tối đa và 2 Phòng Thủ.', effects: { baseMaxSanity: 10, baseDefense: 2 } }
+  ],
+  'Hậu Duệ Sa Ngã': [
+    { id: 'noble_demeanor', name: 'Dáng Vẻ Quý Tộc', description: 'Dù trong hoàn cảnh nào, bạn vẫn giữ được cốt cách hoàng gia. Tăng 4 Sức Hấp Dẫn.', effects: { baseCharisma: 4 } },
+    { id: 'cursed_bloodline', name: 'Dòng Máu Bị Nguyền Rủa', description: 'Lời nguyền trong huyết quản giúp bạn chống lại sự xâm nhập của ma thuật hắc ám. Tăng 10 Tâm Trí tối đa và 10 Mana tối đa.', effects: { baseMaxSanity: 10, baseMaxMana: 10 } },
+    { id: 'forgotten_heirloom', name: 'Báu Vật Bị Lãng Quên', description: 'Bạn giữ một di vật nhỏ từ thời đại huy hoàng, nó mang lại cho bạn một chút sức sống và sự kiên cường. Tăng 10 Máu tối đa và 1 Phòng Thủ.', effects: { baseMaxHp: 10, baseDefense: 1 } }
   ]
 };
 
@@ -175,6 +200,15 @@ export const ORIGINS: Record<Origin, {
     startingEquipment: [
         { id: 'start_jerky_1', name: 'Thịt Khô Mốc', description: 'Mùi vị thật kinh khủng, nhưng nó là thức ăn.', type: 'POTION', effect: { hunger: 20, sanity: -2 } },
         { id: 'start_bandage_1', name: 'Băng Gạc Bẩn', description: 'Tốt hơn là không có gì.', type: 'POTION', effect: { hp: 10 } }
+    ]
+  },
+  'Hậu Duệ Sa Ngã': {
+    name: "Hậu Duệ Sa Ngã",
+    description: "Dòng dõi của bạn từng cai trị những vùng đất đã mất. Giờ đây, chỉ còn lại cái tên và một di sản bị nhuốm màu bi kịch.",
+    bonuses: { baseCharisma: 3 },
+    startingEquipment: [
+        { id: 'start_robe_1', name: 'Áo Chùng Sa Tọa', description: 'Một chiếc áo choàng từng rất lộng lẫy, nay đã sờn rách nhưng vẫn giữ được nét quý phái.', type: 'ARMOR', equipmentSlot: 'armor', effect: { defense: 1, charisma: 1 } },
+        { id: 'start_ring_1', name: 'Nhẫn Gia Huy Mờ Nát', description: 'Một chiếc nhẫn bạc mang gia huy đã mờ. Nó không có giá trị vật chất, nhưng là lời nhắc nhở về một quá khứ huy hoàng.', type: 'RING', equipmentSlot: 'ring1', effect: { charisma: 1 } }
     ]
   }
 };

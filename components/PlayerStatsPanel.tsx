@@ -1,9 +1,9 @@
 
 
 import React from 'react';
-import { PlayerState, Appearance } from '../types';
+import { PlayerState, Appearance, OuterGodMark } from '../types';
 import BodyStatusFigure from './BodyStatusFigure';
-import { OUTER_GODS, ALL_TALENTS_MAP } from '../constants';
+import { OUTER_GODS, ALL_TALENTS_MAP, MARK_TITLES } from '../constants';
 
 // SVG Icons
 const IconHeart = (props: React.SVGProps<SVGSVGElement>) => (
@@ -183,6 +183,20 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState, lastTu
     const activeOuterGodMark = playerState.outerGodMark ? OUTER_GODS[playerState.outerGodMark] : null;
     const activeTalent = playerState.talent ? ALL_TALENTS_MAP.get(playerState.talent) : null;
 
+    const getPlayerTitle = (): string | null => {
+        if (!playerState.outerGodMark) return null;
+        
+        const faithInfo = playerState.faith[playerState.outerGodMark];
+        if (!faithInfo || faithInfo.level === 0) return null;
+
+        const titles = MARK_TITLES[playerState.outerGodMark];
+        const title = titles[faithInfo.level - 1];
+
+        return title || `Bậc ${faithInfo.level}`;
+    }
+    
+    const playerTitle = getPlayerTitle();
+
     return (
         <div>
             <h2 className="text-xl font-title text-red-400 mb-4 border-b-2 border-red-500/30 pb-2">Trạng Thái Của Bạn</h2>
@@ -220,7 +234,9 @@ const PlayerStatsPanel: React.FC<PlayerStatsPanelProps> = ({ playerState, lastTu
                                 </span>
                             )}
                         </h3>
-                        <p className="text-lg font-semibold font-title text-red-300 mt-1">{playerState.origin}</p>
+                        <p className="text-lg font-semibold font-title text-red-300 mt-1">
+                            {playerTitle ? `${playerTitle}, ` : ''}{playerState.origin}
+                        </p>
                          {activeTalent && (
                             <div className="mt-1" title={activeTalent.description}>
                                 <p className="text-sm font-semibold text-yellow-300 flex items-center gap-1.5">

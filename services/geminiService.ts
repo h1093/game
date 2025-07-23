@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Difficulty, PlayerState } from '../types';
 import { ALL_TALENTS_MAP, OUTER_GODS } from '../constants';
@@ -12,144 +10,187 @@ export interface SendActionResult {
 const ITEM_SCHEMA = {
     type: Type.OBJECT,
     properties: {
-        id: { type: Type.STRING, description: "Một mã định danh duy nhất cho phiên bản vật phẩm (ví dụ: 'healing_potion_1')." },
-        name: { type: Type.STRING, description: "Tên của vật phẩm (ví dụ: 'Bình Thuốc Phát Sáng Mờ')." },
-        description: { type: Type.STRING, description: "Một mô tả ngắn gọn, đầy không khí về vật phẩm." },
-        type: { type: Type.STRING, enum: ['POTION', 'WEAPON', 'ARMOR', 'KEY', 'MISC', 'RING', 'AMULET'], description: "Loại vật phẩm." },
-        equipmentSlot: { type: Type.STRING, enum: ['weapon', 'armor', 'ring1', 'ring2'], description: "Vị trí trang bị nếu có.", nullable: true },
-        weaponType: { type: Type.STRING, enum: ['SWORD', 'AXE', 'DAGGER', 'MACE', 'SPEAR', 'BOW', 'STAFF', 'UNARMED'], description: "Loại vũ khí nếu là vũ khí.", nullable: true },
+        id: { type: Type.STRING },
+        name: { type: Type.STRING },
+        description: { type: Type.STRING },
+        type: { type: Type.STRING },
+        equipmentSlot: { type: Type.STRING },
+        weaponType: { type: Type.STRING },
         effect: {
             type: Type.OBJECT,
-            nullable: true,
             properties: {
-                hp: { type: Type.NUMBER, description: "Hồi phục máu.", nullable: true },
-                mana: { type: Type.NUMBER, description: "Hồi phục mana.", nullable: true },
-                sanity: { type: Type.NUMBER, description: "Hồi phục tâm trí.", nullable: true },
-                hunger: { type: Type.NUMBER, description: "Làm dịu cơn đói.", nullable: true },
-                thirst: { type: Type.NUMBER, description: "Giải tỏa cơn khát.", nullable: true },
-                attack: { type: Type.NUMBER, description: "Tăng tấn công.", nullable: true },
-                defense: { type: Type.NUMBER, description: "Tăng phòng thủ.", nullable: true },
-                charisma: { type: Type.NUMBER, description: "Tăng sức hấp dẫn.", nullable: true },
-                maxHp: { type: Type.NUMBER, nullable: true },
-                maxStamina: { type: Type.NUMBER, nullable: true },
-                maxMana: { type: Type.NUMBER, nullable: true },
-                maxSanity: { type: Type.NUMBER, nullable: true },
+                hp: { type: Type.NUMBER },
+                mana: { type: Type.NUMBER },
+                sanity: { type: Type.NUMBER },
+                hunger: { type: Type.NUMBER },
+                thirst: { type: Type.NUMBER },
+                attack: { type: Type.NUMBER },
+                defense: { type: Type.NUMBER },
+                charisma: { type: Type.NUMBER },
+                maxHp: { type: Type.NUMBER },
+                maxStamina: { type: Type.NUMBER },
+                maxMana: { type: Type.NUMBER },
+                maxSanity: { type: Type.NUMBER },
             }
         },
-        isSeveredPart: { type: Type.BOOLEAN, nullable: true, description: "True nếu là một bộ phận cơ thể bị cắt đứt." },
-        decayTimer: { type: Type.NUMBER, nullable: true, description: "Số lượt cho đến khi bộ phận cơ thể bị thối rữa." },
-        isPreserved: { type: Type.BOOLEAN, nullable: true, description: "True nếu bộ phận cơ thể đã được bảo quản." },
+        isSeveredPart: { type: Type.BOOLEAN },
+        decayTimer: { type: Type.NUMBER },
+        isPreserved: { type: Type.BOOLEAN },
     }
 };
+
+const FOLLOWER_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        id: { type: Type.STRING },
+        name: { type: Type.STRING },
+        cult: { type: Type.STRING },
+        loyalty: { type: Type.NUMBER },
+        status: { type: Type.STRING }
+    }
+};
+
 
 const GAME_DATA_SCHEMA = {
     type: Type.OBJECT,
     properties: {
-        narrative: { type: Type.STRING, description: "Mô tả chi tiết, đầy không khí về môi trường, sự kiện và kết quả hành động của người chơi. Tối thiểu 100 từ." },
+        narrative: { type: Type.STRING },
         choices: {
             type: Type.ARRAY,
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    text: { type: Type.STRING, description: "Văn bản hiển thị cho lựa chọn của người chơi." },
-                    prompt: { type: Type.STRING, description: "Một lời nhắc chi tiết cho AI để xử lý khi người chơi chọn lựa chọn này." },
-                    staminaCost: { type: Type.NUMBER, description: "Chi phí thể lực để thực hiện hành động này.", nullable: true },
-                    hitChance: { type: Type.NUMBER, description: "Chỉ dành cho các hành động tấn công. Cơ hội trúng của hành động (0-100).", nullable: true },
+                    text: { type: Type.STRING },
+                    prompt: { type: Type.STRING },
+                    staminaCost: { type: Type.NUMBER },
+                    hitChance: { type: Type.NUMBER },
                 }
-            },
-            description: "Một mảng gồm 2-5 lựa chọn hợp lý, thú vị cho người chơi."
+            }
         },
         statusUpdate: {
             type: Type.OBJECT,
-            nullable: true,
             properties: {
-                message: { type: Type.STRING, description: "Một thông báo ngắn gọn về sự thay đổi trạng thái." },
-                hpChange: { type: Type.NUMBER, description: "Thay đổi về máu. Có thể là số âm hoặc dương." },
-                staminaChange: { type: Type.NUMBER, nullable: true },
-                manaChange: { type: Type.NUMBER, nullable: true },
-                sanityChange: { type: Type.NUMBER, nullable: true },
-                hungerChange: { type: Type.NUMBER, nullable: true },
-                thirstChange: { type: Type.NUMBER, nullable: true },
-                currencyChange: { type: Type.NUMBER, nullable: true },
-                reputationChange: { type: Type.NUMBER, nullable: true },
-                godFragmentsChange: { type: Type.NUMBER, nullable: true, description: "Số lượng Mảnh Vỡ Thần Thánh người chơi nhận được (thường là 1)." },
-                appearanceChange: { type: Type.STRING, enum: ['CLEAN', 'DIRTY', 'BLOODY', 'WELL_DRESSED', 'IN_RAGS'], nullable: true },
+                message: { type: Type.STRING },
+                hpChange: { type: Type.NUMBER },
+                staminaChange: { type: Type.NUMBER },
+                manaChange: { type: Type.NUMBER },
+                sanityChange: { type: Type.NUMBER },
+                hungerChange: { type: Type.NUMBER },
+                thirstChange: { type: Type.NUMBER },
+                currencyChange: { type: Type.NUMBER },
+                reputationChange: { type: Type.NUMBER },
+                godFragmentsChange: { type: Type.NUMBER },
+                appearanceChange: { type: Type.STRING },
                 bodyPartInjuries: {
                     type: Type.ARRAY,
-                    nullable: true,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            part: { type: Type.STRING, enum: ['head', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'] },
-                            level: { type: Type.STRING, enum: ['INJURED', 'CRITICAL', 'SEVERED'] }
-                        }
-                    }
+                    items: { type: Type.OBJECT, properties: { part: { type: Type.STRING }, level: { type: Type.STRING } } }
                 },
-                isMarked: { type: Type.BOOLEAN, nullable: true, description: "Đặt thành true để áp dụng Dấu Hiệu Tế Thần." },
-                markRemoved: { type: Type.BOOLEAN, nullable: true, description: "Đặt thành true để gỡ bỏ Dấu Hiệu Tế Thần." },
-                succubusPactMade: { type: Type.BOOLEAN, nullable: true, description: "Đặt thành true để kích hoạt Giao Ước Đen Tối." },
-                outerGodMarkGained: { type: Type.STRING, enum: ['ALL_MOTHER', 'SILENT_WATCHER', 'ABYSSAL_HUNGER'], nullable: true, description: "Gán cho người chơi một ấn ký của Ngoại Thần." },
-                outerGodMarkRemoved: { type: Type.BOOLEAN, nullable: true, description: "Xóa bỏ ấn ký của Ngoại Thần khỏi người chơi." },
+                itemsLost: { type: Type.ARRAY, items: { type: Type.STRING } },
+                baseAttackChange: { type: Type.NUMBER },
+                baseDefenseChange: { type: Type.NUMBER },
+                baseCharismaChange: { type: Type.NUMBER },
+                baseMaxHpChange: { type: Type.NUMBER },
+                baseMaxStaminaChange: { type: Type.NUMBER },
+                baseMaxManaChange: { type: Type.NUMBER },
+                baseMaxSanityChange: { type: Type.NUMBER },
+                isMarked: { type: Type.BOOLEAN },
+                markRemoved: { type: Type.BOOLEAN },
+                succubusPactMade: { type: Type.BOOLEAN },
+                outerGodMarkGained: { type: Type.STRING },
+                outerGodMarkRemoved: { type: Type.BOOLEAN },
             }
         },
-        gameState: { type: Type.STRING, enum: ['EXPLORING', 'COMBAT', 'GAMEOVER', 'VICTORY'], description: "Trạng thái hiện tại của trò chơi." },
-        itemsFound: { type: Type.ARRAY, nullable: true, items: ITEM_SCHEMA },
+        gameState: { type: Type.STRING },
+        itemsFound: { type: Type.ARRAY, items: ITEM_SCHEMA },
         skillsLearned: {
             type: Type.ARRAY,
-            nullable: true,
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    id: { type: Type.STRING, description: "Mã định danh duy nhất (ví dụ: 'fireball_1')." },
+                    id: { type: Type.STRING },
                     name: { type: Type.STRING },
                     description: { type: Type.STRING },
-                    type: { type: Type.STRING, enum: ['COMBAT', 'UTILITY', 'PASSIVE'] },
+                    type: { type: Type.STRING },
                     cost: { type: Type.NUMBER },
-                    costType: { type: Type.STRING, enum: ['MANA', 'STAMINA'] },
-                    cooldown: { type: Type.NUMBER, description: "Số lượt hồi chiêu." },
+                    costType: { type: Type.STRING },
+                    cooldown: { type: Type.NUMBER },
                 }
             }
         },
         companionsAdded: {
-            type: Type.ARRAY, nullable: true,
+            type: Type.ARRAY,
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    id: { type: Type.STRING }, name: { type: Type.STRING }, hp: { type: Type.NUMBER }, maxHp: { type: Type.NUMBER }, description: { type: Type.STRING }, affection: { type: Type.NUMBER, description: "Tình cảm khởi đầu." }
+                    id: { type: Type.STRING }, name: { type: Type.STRING }, hp: { type: Type.NUMBER }, maxHp: { type: Type.NUMBER }, description: { type: Type.STRING }, affection: { type: Type.NUMBER }
                 }
             }
         },
-        companionsRemoved: { type: Type.ARRAY, nullable: true, items: { type: Type.STRING } },
+        companionsRemoved: { type: Type.ARRAY, items: { type: Type.STRING } },
         companionUpdates: {
-            type: Type.ARRAY, nullable: true,
-            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, hpChange: { type: Type.NUMBER, nullable: true }, affectionChange: { type: Type.NUMBER, nullable: true } } }
+            type: Type.ARRAY,
+            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, hpChange: { type: Type.NUMBER }, affectionChange: { type: Type.NUMBER } } }
         },
         questsAdded: {
-            type: Type.ARRAY, nullable: true,
-            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, title: { type: Type.STRING }, description: { type: Type.STRING }, status: { type: Type.STRING, enum: ['ACTIVE'] } } }
+            type: Type.ARRAY,
+            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, title: { type: Type.STRING }, description: { type: Type.STRING }, status: { type: Type.STRING } } }
         },
         questUpdates: {
-            type: Type.ARRAY, nullable: true,
-            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, status: { type: Type.STRING, enum: ['COMPLETED', 'FAILED'] } } }
+            type: Type.ARRAY,
+            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, status: { type: Type.STRING } } }
         },
         proficiencyUpdate: {
-            type: Type.OBJECT, nullable: true,
-            properties: { weaponType: { type: Type.STRING, enum: ['SWORD', 'AXE', 'DAGGER', 'MACE', 'SPEAR', 'BOW', 'STAFF', 'UNARMED'] }, xpGained: { type: Type.NUMBER } }
+            type: Type.OBJECT,
+            properties: { weaponType: { type: Type.STRING }, xpGained: { type: Type.NUMBER } }
         },
         sanctuariesAdded: {
-            type: Type.ARRAY, nullable: true,
-            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING }, description: { type: Type.STRING }, level: { type: Type.NUMBER }, hope: { type: Type.NUMBER }, residents: { type: Type.ARRAY, items: { type: Type.STRING } }, improvements: { type: Type.ARRAY, items: { type: Type.STRING } } } }
+            type: Type.ARRAY,
+            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING }, description: { type: Type.STRING }, level: { type: Type.NUMBER }, hope: { type: Type.NUMBER }, residents: { type: Type.ARRAY, items: { type: Type.STRING } }, improvements: { type: Type.ARRAY, items: { type: Type.STRING } }, followers: { type: Type.ARRAY, items: FOLLOWER_SCHEMA } } }
         },
         sanctuaryUpdates: {
-            type: Type.ARRAY, nullable: true,
-            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, level: { type: Type.NUMBER, nullable: true }, hopeChange: { type: Type.NUMBER, nullable: true }, addResident: { type: Type.STRING, nullable: true }, addImprovement: { type: Type.STRING, nullable: true }, description: { type: Type.STRING, nullable: true }, name: { type: Type.STRING, nullable: true } } }
+            type: Type.ARRAY,
+            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, level: { type: Type.NUMBER }, hopeChange: { type: Type.NUMBER }, addResident: { type: Type.STRING }, addImprovement: { type: Type.STRING }, description: { type: Type.STRING }, name: { type: Type.STRING } } }
+        },
+        faithUpdate: {
+            type: Type.OBJECT,
+            properties: {
+                god: { type: Type.STRING },
+                pointsGained: { type: Type.NUMBER },
+                levelUp: { type: Type.BOOLEAN }
+            }
+        },
+        followerUpdates: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT, properties: {
+                    sanctuaryId: { type: Type.STRING },
+                    addFollower: { ...FOLLOWER_SCHEMA },
+                    removeFollowerId: { type: Type.STRING },
+                    updateFollower: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING },
+                            loyaltyChange: { type: Type.NUMBER },
+                            status: { type: Type.STRING }
+                        }
+                    }
+                }
+            }
         },
         npcsInScene: {
-            type: Type.ARRAY, nullable: true,
-            items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING }, description: { type: Type.STRING } } }
+            type: Type.ARRAY,
+            items: { 
+                type: Type.OBJECT, 
+                properties: { 
+                    id: { type: Type.STRING }, 
+                    name: { type: Type.STRING }, 
+                    description: { type: Type.STRING },
+                    disposition: { type: Type.STRING }
+                } 
+            }
         },
         enemies: {
-            type: Type.ARRAY, nullable: true,
+            type: Type.ARRAY,
             items: {
                 type: Type.OBJECT,
                 properties: {
@@ -159,19 +200,19 @@ const GAME_DATA_SCHEMA = {
                     bodyParts: {
                         type: Type.OBJECT,
                         properties: {
-                            head: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING, enum: ['HEALTHY', 'INJURED', 'CRITICAL', 'SEVERED'] } } },
-                            torso: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING, enum: ['HEALTHY', 'INJURED', 'CRITICAL', 'SEVERED'] } } },
-                            leftArm: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING, enum: ['HEALTHY', 'INJURED', 'CRITICAL', 'SEVERED'] } } },
-                            rightArm: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING, enum: ['HEALTHY', 'INJURED', 'CRITICAL', 'SEVERED'] } } },
-                            leftLeg: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING, enum: ['HEALTHY', 'INJURED', 'CRITICAL', 'SEVERED'] } } },
-                            rightLeg: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING, enum: ['HEALTHY', 'INJURED', 'CRITICAL', 'SEVERED'] } } },
+                            head: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING } } },
+                            torso: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING } } },
+                            leftArm: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING } } },
+                            rightArm: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING } } },
+                            leftLeg: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING } } },
+                            rightLeg: { type: Type.OBJECT, properties: { hp: { type: Type.NUMBER }, status: { type: Type.STRING } } },
                         }
                     },
-                    currentAction: { type: Type.STRING, description: "Hành động kẻ thù sẽ thực hiện ở lượt tiếp theo.", nullable: true },
+                    currentAction: { type: Type.STRING },
                 }
             }
         },
-        combatLog: { type: Type.ARRAY, nullable: true, items: { type: Type.STRING }, description: "Một nhật ký chi tiết về các hành động và kết quả trong lượt chiến đấu vừa qua." },
+        combatLog: { type: Type.ARRAY, items: { type: Type.STRING } },
     }
 };
 
@@ -247,6 +288,25 @@ QUY TẮC VỀ NGOẠI THẦN & CÁC VỊ THẦN CŨ:
     *   **3+ Mảnh Vỡ**: Các Ngoại Thần bắt đầu hành động. Bạn PHẢI áp dụng **Dấu Hiệu Tế Thần** (\`isMarked: true\`) nếu người chơi chưa có. Các cuộc tấn công của tay sai trở nên thường xuyên và có chủ đích. Các lựa chọn an toàn biến mất.
 5.  **Cách Nhận Ấn Ký (Outer God Mark)**: Giống như trước, người chơi nhận được ấn ký bằng cách thu hút sự chú ý của một Ngoại Thần cụ thể thông qua các hành động phù hợp với bản chất của họ. Điều này không liên quan trực tiếp đến việc thu thập mảnh vỡ, nhưng một người chơi mang ấn ký và thu thập mảnh vỡ sẽ bị săn lùng gắt gao hơn.
 
+HỆ THỐNG TÍN NGƯỠNG, ẤN KÝ VÀ THĂNG TIẾN:
+1.  **Thu Thập Tín Ngưỡng**: Các hành động của người chơi sẽ mang lại điểm tín ngưỡng (\`faith.points\`) cho một Ngoại Thần tương ứng. Ví dụ: chữa lành cho người khác -> +điểm cho Mẹ Toàn Năng. Sử dụng ma thuật, tìm kiếm kiến thức -> +điểm cho Kẻ Lặng Nhìn. Hành động tàn bạo, ích kỷ -> +điểm cho Cơn Đói Vực Thẳm. Gửi các thay đổi này qua \`faithUpdate\`.
+2.  **Thăng Tiến Ấn Ký**: Khi điểm tín ngưỡng của một vị thần vượt qua một ngưỡng (\`[100, 300, 750, 1500]\`), Ấn ký của họ sẽ lên cấp. Bạn PHẢI kích hoạt một sự kiện tường thuật quan trọng, mô tả sức mạnh của vị thần đang dâng trào trong người chơi. Gửi cập nhật này qua \`faithUpdate\` với \`levelUp: true\`.
+3.  **Lựa Chọn Khi Lên Cấp**: NGAY SAU khi mô tả sự kiện lên cấp, bạn BẮT BUỘC phải cung cấp cho người chơi 3 lựa chọn, mỗi lựa chọn đại diện cho một con đường phát triển khác nhau:
+    *   **Con Đường Sức Mạnh**: Lựa chọn có văn bản như "Hấp thụ sức mạnh, cường hóa bản thể." Lời nhắc của nó phải dẫn đến việc tăng vĩnh viễn các chỉ số cơ bản (\`baseMaxHpChange\`, \`baseAttackChange\`, v.v.) thông qua \`statusUpdate\`.
+    *   **Con Đường Quyền Năng**: Lựa chọn có văn bản như "Học một bí mật bị cấm đoán." Lời nhắc của nó phải dẫn đến việc người chơi học được một kỹ năng mới, độc đáo, theo chủ đề của vị thần đó, thông qua \`skillsLearned\`.
+    *   **Con Đường Ảnh Hưởng**: Lựa chọn có văn bản như "Triệu tập một tín đồ trung thành." Lời nhắc của nó phải dẫn đến việc một tín đồ mới xuất hiện tại Thánh địa của người chơi, thông qua \`followerUpdates\`.
+
+CHIẾN TRANH GIÁO PHÁI (MỚI):
+1.  **Sự Trỗi Dậy Gây Chú Ý**: Khi quyền lực của người chơi tăng lên (cấp độ Ấn Ký cao, nhiều tín đồ), các giáo phái đối địch sẽ coi họ là mối đe dọa. Hãy tăng cường sự thù địch của thế giới.
+2.  **Sự Kiện Xung Đột**: Thỉnh thoảng, thay vì một sự kiện thế giới động ngẫu nhiên, hãy kích hoạt một sự kiện xung đột giáo phái. Các ví dụ bao gồm:
+    *   **Phục Kích**: Một nhóm tín đồ đối địch phục kích người chơi. Bắt đầu một trận chiến (\`gameState: 'COMBAT'\`) với những kẻ thù này. Mô tả chúng mang biểu tượng của một Ngoại Thần khác.
+    *   **Phá Hoại**: Kẻ thù tấn công Thánh địa của người chơi từ xa. Gửi một \`sanctuaryUpdates\` với \`hopeChange\` âm. Mô tả thiệt hại và sự sợ hãi của cư dân.
+    *   **Cám Dỗ**: Một tín đồ đối địch cố gắng lôi kéo một trong những tín đồ của người chơi. Điều này nên dẫn đến một lựa chọn tường thuật để giải quyết, và một \`followerUpdates\` với \`loyaltyChange\` âm cho tín đồ bị nhắm tới.
+3.  **Tín Đồ Thù Địch**: Đôi khi, thêm các NPC vào cảnh với \`disposition: 'HOSTILE'\`. Mô tả họ là những tín đồ của một giáo phái khác. Họ sẽ không nói chuyện, chỉ nhìn chằm chằm một cách đe dọa hoặc tấn công nếu bị khiêu khích.
+4.  **Hậu Quả Của Sự Phản Bội**: Khi lòng trung thành của một tín đồ xuống quá thấp và bạn kích hoạt sự kiện phản bội:
+    *   Hậu quả phải nghiêm trọng: mất vật phẩm quan trọng (\`itemsLost\`), Thánh địa bị thiệt hại (\`sanctuaryUpdates\`), hoặc một NPC quan trọng bị giết.
+    *   **QUAN TRỌNG**: Kẻ phản bội giờ đây có thể gia nhập một giáo phái đối địch. Hãy ghi nhớ tên của kẻ phản bội. Trong một cuộc chạm trán trong tương lai, bạn có thể đưa họ trở lại với tư cách là một kẻ thù (\`enemies\`) độc nhất hoặc một NPC thù địch (\`npcsInScene\`).
+
 QUY TẮC VỀ TÍN ĐỒ VÀ SỰ THA HÓA:
 1.  **Món Quà Hai Lưỡi**: Các Ngoại Thần có thể ban cho tín đồ của chúng một phần nhỏ sức mạnh. Tuy nhiên, tâm trí và cơ thể của người phàm thường không thể chịu đựng được.
 2.  **Sự Biến Đổi**: Khi bạn tạo ra một cuộc chạm trán với một tín đồ, có khả năng họ sẽ không kiểm soát được món quà này và bị biến đổi thành một con quái vật ghê tởm ngay trước mắt người chơi. Đây là một cách tuyệt vời để bắt đầu một trận chiến bất ngờ.
@@ -269,10 +329,10 @@ QUY TẮC CHIẾN ĐẤU:
 5.  **HÀNH ĐỘNG TUYỆT VỌNG**: Nếu Thể lực của người chơi quá thấp để thực hiện BẤT KỲ lựa chọn nào được đề xuất (ví dụ: tất cả các lựa chọn đều tốn 10 Thể lực nhưng người chơi chỉ có 5), bạn **BẮT BUỘC** phải cung cấp ít nhất MỘT lựa chọn có 'staminaCost: 0'. Mô tả nó như một hành động yếu ớt, tuyệt vọng (ví dụ: "Cố gắng vung vũ khí một cách yếu ớt", "Lảo đảo đỡ đòn"). Hành động này sẽ có hiệu quả thấp (ví dụ: 'hitChance' rất thấp hoặc không gây sát thương).
 
 ĐIỀU CHỈNH ĐỘ KHÓ:
-- **Thử Thách**: Kẻ thù yếu hơn (Hệ số sát thương x1.0). Tài nguyên phổ biến hơn.
-- **Ác Mộng**: Kẻ thù mạnh hơn (Hệ số sát thương x1.5). Tài nguyên khan hiếm. Cái chết xóa save.
-- **Đày Đoạ**: Kẻ thù rất mạnh (Hệ số sát thương x1.75). Cơ chế Đói/Khát/Tâm trí khắc nghiệt hơn. Tài nguyên cực kỳ hiếm. Cái chết xóa save.
-- **Địa Ngục**: Kẻ thù tàn bạo (Hệ số sát thương x2.0). Thế giới tích cực thù địch. Cái chết xóa save và là một sự giải thoát.
+- **Thử Thách**: Hệ số sát thương x1.0. Tài nguyên, vật phẩm và tiền tệ xuất hiện với tần suất bình thường. Kẻ thù hành động theo bản năng. Tốc độ tăng tín ngưỡng & lòng trung thành ở mức bình thường. Các sự kiện Chiến tranh Giáo phái ít xảy ra hơn.
+- **Ác Mộng**: Hệ số sát thương x1.5. Giảm nhẹ tần suất và chất lượng của vật phẩm tìm thấy. Kẻ thù có chiến thuật hơn, sẽ cố gắng tấn công vào các bộ phận cơ thể đã bị thương. Tín ngưỡng tăng chậm hơn. Lòng trung thành khó kiếm và dễ mất hơn. Các sự kiện Chiến tranh Giáo phái thường xuyên hơn. Cái chết xóa save.
+- **Đày Đoạ**: Hệ số sát thương x1.75. Vật phẩm, đặc biệt là vật phẩm chữa bệnh, rất khan hiếm. Kẻ thù tàn nhẫn, sẽ ưu tiên tiêu diệt các mục tiêu yếu hơn và khai thác điểm yếu của người chơi. Tín ngưỡng tăng rất chậm. Lòng trung thành cực kỳ mong manh. Các cuộc tấn công của giáo phái đối địch là không thể tránh khỏi. Cái chết xóa save.
+- **Địa Ngục**: Hệ số sát thương x2.0. Vật phẩm gần như không tồn tại; mỗi vật phẩm là một kho báu. Kẻ thù xảo quyệt, tàn ác, sẽ giăng bẫy và phục kích. Thế giới tích cực săn lùng bạn. Tín ngưỡng gần như không tăng. Sự phản bội là điều gần như chắc chắn. Các giáo phái đối địch sẽ săn lùng bạn không ngừng. Cái chết xóa save.
 
 CƠ CHẾ ĐẶC BIỆT:
 - **Dấu Hiệu Tế Thần ('isMarked')**: Nếu 'true', thế giới trở nên thù địch hơn. Kẻ thù mạnh hơn và thường xuyên hơn.
@@ -324,7 +384,7 @@ BỐI CẢNH NGƯỜI CHƠI HIỆN TẠI (ĐỂ THAM KHẢO):
 - Trạng thái: HP ${playerState.hp}/${playerState.maxHp}, Thể lực ${playerState.stamina}/${playerState.maxStamina}, Tâm trí ${playerState.sanity}/${playerState.maxSanity}
 - Đặc điểm: Nguồn gốc '${playerState.origin}', Tính cách '${playerState.personality}'
 - Thiên phú: ${playerState.talent ? (ALL_TALENTS_MAP.get(playerState.talent)?.name || 'Không rõ') : 'Không có'}
-- Ấn ký: ${playerState.outerGodMark ? OUTER_GODS[playerState.outerGodMark].markName : 'Không có'}
+- Ấn ký & Tín ngưỡng: ${playerState.outerGodMark ? `${OUTER_GODS[playerState.outerGodMark].markName} (Cấp ${playerState.faith[playerState.outerGodMark]?.level || 0}, ${playerState.faith[playerState.outerGodMark]?.points || 0} điểm)` : 'Không có'}
 - Mảnh vỡ Thần thánh: ${playerState.godFragments}
 ---
 HÀNH ĐỘNG CỦA NGƯỜI CHƠI:

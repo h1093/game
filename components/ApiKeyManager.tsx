@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 // SVG Icons
@@ -73,14 +74,14 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ isOpen, onClose, onSave, 
                      <textarea
                         value={keysInput}
                         onChange={(e) => setKeysInput(e.target.value)}
-                        placeholder={"ví dụ\napikey1\napikey2\napikeyN"}
+                        placeholder={"dán api_key_1\ndán api_key_2\n..."}
                         rows={5}
                         className={`w-full bg-gray-900 border ${currentSource === 'user' ? 'border-red-500/40' : 'border-gray-600'} rounded-md p-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition text-sm text-white placeholder:text-gray-500`}
                         aria-label="Nhập các API Key của bạn"
                      />
                      <p className="text-xs text-gray-400 mt-2">
-                        Nhập một hoặc nhiều API Key Gemini, mỗi key một dòng.
-                        API Key sẽ được lưu cục bộ. Ứng dụng sẽ tự động xoay vòng key nếu một key gặp lỗi (mỗi key 1 dòng, chép xong key 1 thì bấm Shift + Enter rồi chép key 2... không ghi chấm phẩy giữ các key ).
+                        Nhập một hoặc nhiều API Key Gemini, mỗi key một dòng (sử dụng Shift + Enter để xuống dòng).
+                        API Key sẽ được lưu cục bộ. Ứng dụng sẽ tự động xoay vòng key nếu một key gặp lỗi.
                      </p>
                      <button
                         onClick={handleSave}

@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { GAME_TITLE } from '../constants';
 
@@ -57,6 +58,36 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
             <h2 className="text-3xl font-title text-red-400 border-b-2 border-red-500/30 pb-2">Nhật Ký Cập Nhật</h2>
             
             <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 4.0.1: Sự Ổn Định Của Vực Thẳm</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-orange-400">[SỬA LỖI & TỐI ƯU HÓA]</span> Đã thực hiện các thay đổi lớn đối với cách trò chơi giao tiếp với AI Gemini. Điều này giải quyết một lỗi nghiêm trọng có thể ngăn câu chuyện bắt đầu hoặc tiếp diễn, đặc biệt là sau khi tạo nhân vật.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-gray-400">[CẢI THIỆN HIỆU SUẤT]</span> Việc tối ưu hóa này giúp giảm độ phức tạp của các yêu cầu gửi đến AI, dẫn đến thời gian phản hồi nhanh hơn và trải nghiệm chơi game mượt mà, ổn định hơn. Giờ đây, vực thẳm sẽ đáp lại lời gọi của bạn một cách đáng tin cậy hơn.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
+                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 4.0: Con Đường Của Quyền Lực</h3>
+                <ul className="list-disc list-inside space-y-3 text-gray-300">
+                    <li>
+                        <span className="font-semibold text-red-400">[ĐẠI TU HỆ THỐNG]</span> **Tín Ngưỡng & Thăng Tiến**: Hành động của bạn giờ sẽ tích lũy điểm Tín Ngưỡng với các Ngoại Thần. Khi đạt đủ điểm, Ấn Ký của bạn sẽ **lên bậc**, mang lại danh hiệu và quyền năng mới.
+                    </li>
+                     <li>
+                        <span className="font-semibold text-green-400">[CƠ CHẾ MỚI]</span> **Ba Con Đường Phát Triển**: Mỗi lần Ấn Ký lên bậc, bạn phải chọn một trong ba con đường: **Sức Mạnh** (tăng chỉ số vĩnh viễn), **Quyền Năng** (học kỹ năng mới độc quyền), hoặc **Ảnh Hưởng** (chiêu mộ tín đồ mới).
+                    </li>
+                    <li>
+                        <span className="font-semibold text-purple-400">[TÍNH NĂNG MỚI]</span> **Quản Lý Giáo Phái & Sự Phản Bội**: Thánh Địa giờ là Tổng bộ của bạn. Quản lý các tín đồ, ra lệnh và củng cố lòng trung thành của họ. Nhưng hãy cẩn thận, một tín đồ bị bỏ rơi có thể **phản bội** bạn!
+                    </li>
+                     <li>
+                        <span className="font-semibold text-blue-400">[GIAO DIỆN NÂNG CẤP]</span> Giao diện được cập nhật để hiển thị Danh hiệu giáo phái, cũng như danh sách và lòng trung thành của các tín đồ trong Thánh Địa.
+                    </li>
+                </ul>
+            </div>
+
+            <div className="border-b border-gray-700 pb-6">
                 <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.10: Sự Tha Hóa Của Đức Tin</h3>
                 <ul className="list-disc list-inside space-y-3 text-gray-300">
                     <li>
@@ -101,72 +132,6 @@ const UpdateLogModal = ({ onClose }: { onClose: () => void }) => (
                 </ul>
             </div>
             
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.7: Sự Mỏng Manh Của Lý Trí</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-blue-400">[CÂN BẰNG GAMEPLAY]</span> **Tinh Chỉnh Cơ Chế Tâm Trí**: Để giải quyết phản hồi rằng chỉ số Tâm Trí giảm quá nhanh, cơ chế này đã được cân bằng lại.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[GIẢM SỰ BÀO MÒN]</span> Việc mất Tâm Trí từ các hoạt động thông thường (chiến đấu, bị thương nhẹ) đã được giảm đáng kể.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-red-400">[TĂNG CƯỜNG CÚ SỐC]</span> Những lần mất Tâm Trí lớn giờ đây được dành riêng cho những sự kiện thực sự kinh hoàng, đặc biệt là khi đối mặt trực tiếp với các Ngoại Thần hoặc các hiện tượng siêu nhiên, làm cho những khoảnh khắc này trở nên nguy hiểm và đáng nhớ hơn.
-                    </li>
-                </ul>
-            </div>
-            
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.6: Ranh Giới Của Sự Điên Loạn</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[CƠ CHẾ MỚI]</span> **Ảo Giác & Mất Trí**: Chỉ số Tâm Trí giờ đây có hậu quả rõ rệt hơn.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-purple-400">[ẢO GIÁC]</span> Khi Tâm Trí của bạn suy giảm, AI Quản Trò sẽ bắt đầu mô tả những ảo giác tinh vi (âm thanh, hình ảnh) và chúng sẽ trở nên tồi tệ hơn khi bạn tiến gần đến sự điên loạn.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-cyan-400">[CƠ HỘI & NGUY HIỂM]</span> Một tâm trí yếu đuối sẽ dễ bị ảnh hưởng bởi các Ngoại Thần hơn, tăng cơ hội nhận được ấn ký của họ.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-green-400">[NƠI TRÚ ẨN]</span> Các Thánh Địa giờ đây là nơi trú ẩn an toàn, giúp bạn khôi phục một lượng lớn Tâm Trí khi nghỉ ngơi.
-                    </li>
-                </ul>
-            </div>
-            
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.5: Bản Chất Của Linh Hồn</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[ĐẠI TU TÍNH CÁCH]</span> **Tính Cách Có Hiệu Ứng**: Lựa chọn tính cách không còn chỉ mang tính hình thức. Mỗi tính cách giờ đây đi kèm với các hiệu ứng cơ chế cụ thể.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[HIỆU ỨNG CƠ CHẾ]</span> Các hiệu ứng bao gồm thay đổi chỉ số bị động (ví dụ: "Thận Trọng" tăng Phòng Thủ, giảm Tấn Công), hiệu ứng theo điều kiện ("Hận Thù" tăng sát thương khi máu thấp), và các quy tắc đặc biệt ("Vô Cảm" kháng sát thương Tâm Trí).
-                    </li>
-                    <li>
-                        <span className="font-semibold text-blue-400">[CẬP NHẬT GIAO DIỆN]</span> Màn hình tạo nhân vật giờ đây hiển thị rõ ràng mô tả và hiệu ứng của mỗi tính cách.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-purple-400">[CẬP NHẬT AI]</span> AI Quản Trò đã được huấn luyện để nhận biết và phản hồi lại tính cách của bạn, điều chỉnh câu chuyện và các lựa chọn cho phù hợp.
-                    </li>
-                </ul>
-            </div>
-
-            <div className="border-b border-gray-700 pb-6">
-                <h3 className="text-xl font-bold text-gray-200 mb-3">Phiên bản 3.4: Biên Niên Sử Chưa Viết</h3>
-                <ul className="list-disc list-inside space-y-3 text-gray-300">
-                    <li>
-                        <span className="font-semibold text-red-400">[TÍNH NĂNG CHÍNH]</span> **Tạo Hành Trình Riêng**: Một chế độ "Tạo Hành Trình Riêng" đã được thêm vào màn hình bắt đầu.
-                    </li>
-                     <li>
-                        <span className="font-semibold text-green-400">[CỐT TRUYỆN DO NGƯỜI CHƠI ĐIỀU KHIỂN]</span> Giờ đây bạn có thể viết nên bối cảnh câu chuyện của riêng mình, xác định thế giới, tình huống khởi đầu và mục tiêu cuối cùng của bạn. AI Quản Trò sẽ sử dụng lời nhắc của bạn làm nền tảng cho toàn bộ cuộc phiêu lưu.
-                    </li>
-                    <li>
-                        <span className="font-semibold text-purple-400">[KHẢ NĂNG VÔ HẠN]</span> Muốn trở thành một cướp biển bị nguyền rủa tìm kiếm kho báu đã mất trên một biển ma? Một thám tử trong một thành phố gothic, ẩm ướt được cung cấp năng lượng bởi ma thuật bị cấm? Một người sống sót đơn độc trong một vùng đất hoang băng giá sau khi mặt trời chết? Bây giờ bạn có thể. Câu chuyện là của bạn để bắt đầu.
-                    </li>
-                </ul>
-            </div>
-
             <div className="pt-4 border-t border-gray-700 text-center">
                 <p className="text-gray-500 italic">Bóng tối không ngừng phát triển, và chúng tôi cũng vậy.</p>
             </div>
